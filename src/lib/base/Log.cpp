@@ -26,6 +26,7 @@
 #include <cstring>
 #include <iostream>
 #include <ctime>
+#include <chrono>
 
 // names of priorities
 static const char*        g_priority[] = {
@@ -166,13 +167,12 @@ Log::print(const char* file, int line, const char* fmt, ...)
     // print the prefix to the buffer.    leave space for priority label.
     // do not prefix time and file for kPRINT (CLOG_PRINT)
     if (priority != kPRINT) {
-
-        struct tm *tm;
-        char timestamp[50];
-        time_t t;
-        time(&t);
-        tm = localtime(&t);
-        sprintf(timestamp, "%04i-%02i-%02iT%02i:%02i:%02i", tm->tm_year + 1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+        auto now = std::chrono::system_clock::now();
+        auto ms = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()) % 1000000;
+        std::time_t t = std::chrono::system_clock::to_time_t(now);
+        char timestamp[56];
+        struct tm *tm = localtime(reinterpret_cast<time_t *>(&t));
+        sprintf(timestamp, "%04i-%02i-%02iT%02i:%02i:%02i.%05i", tm->tm_year + 1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, static_cast<int>(ms.count()));
 
         // square brackets, spaces, comma and null terminator take about 10
         size_t size = 10;

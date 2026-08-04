@@ -50,6 +50,8 @@ class IPrimaryScreenEvents;
 class IScreenEvents;
 class ClipboardEvents;
 class FileEvents;
+class ExternalCommandClientProxyEvents;
+class ExternalCommandServerEvents;
 
 //! Event queue interface
 /*!
@@ -227,6 +229,8 @@ public:
     virtual IpcClientProxyEvents&        forIpcClientProxy() = 0;
     virtual IpcServerEvents&            forIpcServer() = 0;
     virtual IpcServerProxyEvents&        forIpcServerProxy() = 0;
+    virtual ExternalCommandClientProxyEvents& forExternalCommandClientProxy() = 0;
+    virtual ExternalCommandServerEvents& forExternalCommandServer() = 0;
     virtual IDataSocketEvents&            forIDataSocket() = 0;
     virtual IListenSocketEvents&        forIListenSocket() = 0;
     virtual ISocketEvents&                forISocket() = 0;

@@ -42,6 +42,7 @@
 #include "base/IEventQueue.h"
 #include "base/Log.h"
 #include "base/TMethodEventJob.h"
+#include "ipc/ExternalCommandServer.h"
 
 #include <cstring>
 #include <cstdlib>
@@ -49,6 +50,8 @@
 #include <fstream>
 #include <ctime>
 #include <stdexcept>
+#include <thread>
+#include <chrono>
 //
 // Server
 //
@@ -112,6 +115,9 @@ Server::Server(
 		}
 		clipboard.m_clipboardData   = clipboard.m_clipboard.marshall();
 	}
+
+	m_externalCommandServer = new ExternalCommandServer(m_events, &m_socketMultiplexer, 8080);
+	m_externalCommandServer->listen();
 
 	// install event handlers
 	m_events->adoptHandler(Event::kTimer, this,
@@ -205,6 +211,7 @@ Server::Server(
 
 	// enable primary client
 	m_primaryClient->enable();
+	m_inputFilter->setExternalCommandServer(m_externalCommandServer);
 	m_inputFilter->setPrimaryClient(m_primaryClient);
 
 	// Determine if scroll lock is already set. If so, lock the cursor to the primary screen
@@ -219,6 +226,10 @@ Server::~Server()
 {
 	if (m_mock) {
 		return;
+	}
+
+	if (m_externalCommandServer != nullptr) {
+		delete m_externalCommandServer;
 	}
 
 	// remove event handlers and timers
@@ -1676,6 +1687,8 @@ Server::onKeyUp(KeyID id, KeyModifierMask mask, KeyButton button,
 		for (ClientList::const_iterator index = m_clients.begin();
 								index != m_clients.end(); ++index) {
 			if (IKeyState::KeyInfo::contains(screens, index->first)) {
+				using namespace std::chrono_literals;
+				std::this_thread::sleep_for(60ms);
 				index->second->keyUp(id, mask, button);
 			}
 		}

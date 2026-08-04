@@ -78,6 +78,12 @@ REGISTER_EVENT(IpcClientProxy, disconnected)
 
 REGISTER_EVENT(IpcServerProxy, messageReceived)
 
+REGISTER_EVENT(ExternalCommandClientProxy, messageReceived)
+REGISTER_EVENT(ExternalCommandClientProxy, disconnected)
+
+REGISTER_EVENT(ExternalCommandServer, clientConnected);
+REGISTER_EVENT(ExternalCommandServer, messageReceived);
+
 //
 // IDataSocket
 //

@@ -32,6 +32,7 @@
 #include "common/stdmap.h"
 #include "common/stdset.h"
 #include "common/stdvector.h"
+#include "net/SocketMultiplexer.h"
 
 class BaseClientProxy;
 class EventQueueTimer;
@@ -41,6 +42,7 @@ namespace barrier { class Screen; }
 class IEventQueue;
 class Thread;
 class ClientListener;
+class ExternalCommandServer;
 
 //! Barrier server
 /*!
@@ -481,4 +483,6 @@ private:
 
     ClientListener*        m_clientListener;
     ServerArgs            m_args;
+	SocketMultiplexer m_socketMultiplexer;
+    ExternalCommandServer *m_externalCommandServer{nullptr};
 };

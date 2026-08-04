@@ -232,6 +232,36 @@ private:
     Event::Type        m_messageReceived;
 };
 
+class ExternalCommandClientProxyEvents : public EventTypes {
+public:
+    ExternalCommandClientProxyEvents() :
+        m_messageReceived(Event::kUnknown),
+        m_disconnected(Event::kUnknown) { }
+    //! Raised when the server receives a message from a client.
+    Event::Type        messageReceived();
+
+    //! Raised when the client disconnects from the server.
+    Event::Type        disconnected();
+private:
+    Event::Type        m_messageReceived;
+    Event::Type        m_disconnected;
+};
+
+class ExternalCommandServerEvents : public EventTypes {
+public:
+    ExternalCommandServerEvents() :
+        m_clientConnected(Event::kUnknown),
+        m_messageReceived(Event::kUnknown) { }
+    //! Raised when we have created the client proxy.
+    Event::Type        clientConnected();
+
+    //! Raised when a message is received through a client proxy.
+    Event::Type        messageReceived();
+private:
+    Event::Type        m_clientConnected;
+    Event::Type        m_messageReceived;
+};
+
 class IDataSocketEvents : public EventTypes {
 public:
     IDataSocketEvents() :

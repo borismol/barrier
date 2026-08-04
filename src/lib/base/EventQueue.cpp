@@ -35,6 +35,8 @@ EVENT_TYPE_ACCESSOR(IpcClient)
 EVENT_TYPE_ACCESSOR(IpcClientProxy)
 EVENT_TYPE_ACCESSOR(IpcServer)
 EVENT_TYPE_ACCESSOR(IpcServerProxy)
+EVENT_TYPE_ACCESSOR(ExternalCommandClientProxy)
+EVENT_TYPE_ACCESSOR(ExternalCommandServer)
 EVENT_TYPE_ACCESSOR(IDataSocket)
 EVENT_TYPE_ACCESSOR(IListenSocket)
 EVENT_TYPE_ACCESSOR(ISocket)
@@ -73,6 +75,8 @@ EventQueue::EventQueue() :
     m_typesForIpcClientProxy(NULL),
     m_typesForIpcServer(NULL),
     m_typesForIpcServerProxy(NULL),
+    m_typesForExternalCommandClientProxy(NULL),
+    m_typesForExternalCommandServer(NULL),
     m_typesForIDataSocket(NULL),
     m_typesForIListenSocket(NULL),
     m_typesForISocket(NULL),

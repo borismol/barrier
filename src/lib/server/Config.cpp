@@ -1064,6 +1064,18 @@ InputFilter::Condition* Config::parseCondition(ConfigReadContext& s, const std::
 		return new InputFilter::ScreenConnectedCondition(m_events, screen);
 	}
 
+	if (name == "ExternalCommand") {
+		if (args.size() != 1) {
+			throw XConfigRead(s, "syntax for condition: ExternalCommand([command])");
+		}
+		std::string command = args[0];
+		if (command.empty()) {
+			throw XConfigRead(s, "command should not be empty");
+	
+		}
+		return new InputFilter::ExternalCommandCondition(m_events, command);
+	}
+
 	throw XConfigRead(s, "unknown argument \"%{1}\"", name);
 }
 
@@ -1094,7 +1106,7 @@ void Config::parseAction(ConfigReadContext& s, const std::string& name,
 			action = new InputFilter::KeystrokeAction(m_events, keyInfo2, true);
 			rule.adoptAction(action, true);
 			action   = new InputFilter::KeystrokeAction(m_events, keyInfo, false);
-			activate = false;
+			//activate = false;
 		}
 		else if (name == "keyDown") {
 			action = new InputFilter::KeystrokeAction(m_events, keyInfo, true);

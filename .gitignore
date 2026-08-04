@@ -8,10 +8,11 @@ config.h
 *build-gui-Desktop_Qt*
 /bin
 /lib
-/build
+/build*
 /CMakeFiles
 /ext/cryptopp562
 /ext/openssl
+/ext
 /src/gui/Makefile*
 /src/gui/object_script*
 /src/gui/tmp

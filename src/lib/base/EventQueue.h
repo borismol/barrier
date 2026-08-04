@@ -144,6 +144,8 @@ public:
     IpcClientProxyEvents&        forIpcClientProxy();
     IpcServerEvents&            forIpcServer();
     IpcServerProxyEvents&        forIpcServerProxy();
+    ExternalCommandClientProxyEvents& forExternalCommandClientProxy() override;
+    ExternalCommandServerEvents& forExternalCommandServer() override;
     IDataSocketEvents&            forIDataSocket();
     IListenSocketEvents&        forIListenSocket();
     ISocketEvents&                forISocket();
@@ -166,6 +168,8 @@ private:
     IpcClientProxyEvents*        m_typesForIpcClientProxy;
     IpcServerEvents*            m_typesForIpcServer;
     IpcServerProxyEvents*        m_typesForIpcServerProxy;
+    ExternalCommandClientProxyEvents* m_typesForExternalCommandClientProxy;
+    ExternalCommandServerEvents* m_typesForExternalCommandServer;
     IDataSocketEvents*            m_typesForIDataSocket;
     IListenSocketEvents*        m_typesForIListenSocket;
     ISocketEvents*                m_typesForISocket;

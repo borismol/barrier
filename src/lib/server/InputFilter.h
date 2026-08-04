@@ -28,6 +28,7 @@
 class PrimaryClient;
 class Event;
 class IEventQueue;
+class ExternalCommandServer;
 
 class InputFilter {
 public:
@@ -112,6 +113,19 @@ public:
 
     private:
         std::string m_screen;
+        IEventQueue*            m_events;
+    };
+
+    class ExternalCommandCondition : public Condition
+    {
+    public:
+        ExternalCommandCondition(IEventQueue *events, const std::string &command);
+        Condition *clone() const override;
+        std::string format() const override;
+        EFilterStatus match(const Event &) override;
+
+    private:
+        std::string m_command;
         IEventQueue*            m_events;
     };
 
@@ -351,6 +365,7 @@ public:
     // enable event filtering using the given primary client.  disable
     // if client is NULL.
     virtual void        setPrimaryClient(PrimaryClient* client);
+    void setExternalCommandServer(ExternalCommandServer *externalCommandServer);
 
     // convert rules to a string
     std::string format(const std::string& linePrefix) const;
@@ -370,5 +385,6 @@ private:
 private:
     RuleList            m_ruleList;
     PrimaryClient*        m_primaryClient;
+    ExternalCommandServer *m_externalCommandServer;
     IEventQueue*        m_events;
 };

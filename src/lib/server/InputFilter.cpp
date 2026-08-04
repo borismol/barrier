@@ -23,6 +23,8 @@
 #include "base/EventQueue.h"
 #include "base/Log.h"
 #include "base/TMethodEventJob.h"
+#include "ipc/ExternalCommandServer.h"
+#include "ipc/ExternalCommandMessage.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -259,6 +261,40 @@ InputFilter::ScreenConnectedCondition::match(const Event& event)
         }
     }
 
+    return kNoMatch;
+}
+
+InputFilter::ExternalCommandCondition::ExternalCommandCondition(IEventQueue *events, const std::string &command)
+    : m_command(command), m_events(events)
+{
+}
+
+InputFilter::Condition *InputFilter::ExternalCommandCondition::clone() const
+{
+    return new ExternalCommandCondition(m_events, m_command);
+}
+
+std::string InputFilter::ExternalCommandCondition::format() const
+{
+    return barrier::string::sprintf("ExternalCommand(%s)", m_command.c_str());
+}
+
+InputFilter::EFilterStatus InputFilter::ExternalCommandCondition::match(const Event &event)
+{
+    if (event.getType() != m_events->forExternalCommandServer().messageReceived())
+    {
+        return kNoMatch;
+    }
+
+    auto *info = static_cast<ExternalCommandMessage *>(event.getDataObject());
+    if (info == nullptr) {
+        LOG((CLOG_WARN "External command info is null"));
+        return kNoMatch;
+    }
+    if (info->getData() == m_command) {
+        Event::deleteData(event);
+        return kActivate;
+    }
     return kNoMatch;
 }
 
@@ -901,6 +937,7 @@ InputFilter::Rule::getAction(bool onActivation, UInt32 index) const
 // -----------------------------------------------------------------------------
 InputFilter::InputFilter(IEventQueue* events) :
     m_primaryClient(NULL),
+    m_externalCommandServer(NULL),
     m_events(events)
 {
     // do nothing
@@ -908,9 +945,11 @@ InputFilter::InputFilter(IEventQueue* events) :
 
 InputFilter::InputFilter(const InputFilter& x) :
     m_ruleList(x.m_ruleList),
+    m_externalCommandServer(NULL),
     m_primaryClient(NULL),
     m_events(x.m_events)
 {
+    setExternalCommandServer(x.m_externalCommandServer);
     setPrimaryClient(x.m_primaryClient);
 }
 
@@ -1031,6 +1070,29 @@ InputFilter::setPrimaryClient(PrimaryClient* client)
     }
 }
 
+void InputFilter::setExternalCommandServer(ExternalCommandServer *externalCommandServer)
+{
+    if (m_externalCommandServer == externalCommandServer) {
+        return;
+    }
+
+    if (m_externalCommandServer != NULL)
+    {
+        m_events->removeHandler(m_events->forExternalCommandServer().messageReceived(),
+                                m_externalCommandServer);
+    }
+
+    m_externalCommandServer = externalCommandServer;
+
+    if (m_externalCommandServer != NULL)
+    {
+        m_events->adoptHandler(m_events->forExternalCommandServer().messageReceived(),
+                               externalCommandServer,
+                               new TMethodEventJob<InputFilter>(this,
+                                                                &InputFilter::handleEvent));
+    }
+}
+
 std::string InputFilter::format(const std::string& linePrefix) const
 {
     std::string s;
@@ -1086,6 +1148,7 @@ InputFilter::handleEvent(const Event& event, void*)
     Event myEvent(event.getType(), this, event.getData(),
                                 event.getFlags() | Event::kDontFreeData |
                                 Event::kDeliverImmediately);
+    myEvent.setDataObject(event.getDataObject());
 
     // let each rule try to match the event until one does
     for (RuleList::iterator rule  = m_ruleList.begin();
