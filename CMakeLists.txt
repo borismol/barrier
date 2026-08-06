@@ -285,10 +285,14 @@ if (UNIX)
     endif()
 
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /D _BIND_TO_CURRENT_VCLIBS_VERSION=1")
-    set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD /O2 /Ob2")
+    if (MSVC)
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /D _BIND_TO_CURRENT_VCLIBS_VERSION=1")
+        set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD /O2 /Ob2")
+    else()
+        set (CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} --use-temp-file")
+    endif()
 
-    list (APPEND libs Wtsapi32 Userenv Wininet comsuppw Shlwapi)
+    list (APPEND libs Wtsapi32 Userenv Wininet Shlwapi Ws2_32)
 
     add_definitions (
         /DSYSAPI_WIN32=1
@@ -299,6 +303,8 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
         /D_CRT_SECURE_NO_WARNINGS
         /DBARRIER_VERSION=\"${BARRIER_VERSION}\"
         /D_XKEYCHECK_H
+        /D_WIN32_WINNT=0x0602
+        /DWINVER=0x0602
     )
 endif()
 
@@ -308,18 +314,23 @@ include_directories("${CMAKE_SOURCE_DIR}/ext/gulrak-filesystem/include")
 # OpenSSL
 #
 if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-    set (OPENSSL_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/ext/openssl/windows)
-    if (CMAKE_SIZEOF_VOID_P EQUAL 8)
-        set (OPENSSL_ROOT "${OPENSSL_ROOT}/x64")
-    else()
-        set (OPENSSL_ROOT "${OPENSSL_ROOT}/x86")
-    endif()
+    if (MSVC)
+        set (OPENSSL_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/ext/openssl/windows)
+        if (CMAKE_SIZEOF_VOID_P EQUAL 8)
+            set (OPENSSL_ROOT "${OPENSSL_ROOT}/x64")
+        else()
+            set (OPENSSL_ROOT "${OPENSSL_ROOT}/x86")
+        endif()
 
-    include_directories (BEFORE SYSTEM ${OPENSSL_ROOT}/include)
-    set (OPENSSL_LIBS
-        ${OPENSSL_ROOT}/lib/libeay32.lib
-        ${OPENSSL_ROOT}/lib/ssleay32.lib
-    )
+        include_directories (BEFORE SYSTEM ${OPENSSL_ROOT}/include)
+        set (OPENSSL_LIBS
+            ${OPENSSL_ROOT}/lib/libeay32.lib
+            ${OPENSSL_ROOT}/lib/ssleay32.lib
+        )
+    else()
+        find_package(OpenSSL REQUIRED)
+        set (OPENSSL_LIBS ${OPENSSL_LIBRARIES})
+    endif()
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     find_program(APT_PROGRAM "apt")
     find_program(BREW_PROGRAM "brew")

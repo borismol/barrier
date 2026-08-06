@@ -38,8 +38,16 @@ if (BARRIER_ADD_HEADERS)
 endif()
 
 add_executable(barriers ${sources})
-target_link_libraries(barriers
-    arch base client common io mt net ipc platform server synlib ${libs} ${OPENSSL_LIBS})
+if (MSVC)
+    target_link_libraries(barriers
+        arch base client common io mt net ipc platform server synlib ${libs} ${OPENSSL_LIBS})
+else()
+    target_link_libraries (barriers
+            -Wl,--start-group
+            arch base client common io mt net ipc platform server synlib
+            -Wl,--end-group
+            ${libs} ${OPENSSL_LIBS})
+endif()
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     install (TARGETS barriers DESTINATION ${BARRIER_BUNDLE_BINARY_DIR})

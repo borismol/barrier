@@ -38,8 +38,16 @@ if (BARRIER_ADD_HEADERS)
 endif()
 
 add_executable(barrierc ${sources})
-target_link_libraries(barrierc
-    arch base client common io mt net ipc platform server synlib ${libs} ${OPENSSL_LIBS})
+if (MSVC)
+    target_link_libraries(barrierc
+        arch base client common io mt net ipc platform server synlib ${libs} ${OPENSSL_LIBS})
+else()
+    target_link_libraries (barrierc
+            -Wl,--start-group
+            arch base client common io mt net ipc platform server synlib
+            -Wl,--end-group
+            ${libs} ${OPENSSL_LIBS})
+endif()
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     install (TARGETS barrierc DESTINATION ${BARRIER_BUNDLE_BINARY_DIR})

@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "common/common.h"
 #include "common/stdstring.h"
 

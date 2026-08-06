@@ -26,5 +26,13 @@ else()
   add_executable (barrierd ${sources})
 endif()
 
-target_link_libraries (barrierd
-    arch base common io ipc mt net platform synlib ${libs} ${OPENSSL_LIBS})
+if (MSVC)
+  target_link_libraries (barrierd
+      arch base client common io ipc mt net platform synlib ${libs} ${OPENSSL_LIBS})
+else()
+  target_link_libraries (barrierd
+        -Wl,--start-group
+        arch base client common io ipc mt net platform synlib
+        -Wl,--end-group
+        ${libs} ${OPENSSL_LIBS})
+endif()
