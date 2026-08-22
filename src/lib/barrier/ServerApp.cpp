@@ -150,6 +150,8 @@ ServerApp::help()
            << HELP_COMMON_INFO_1
            << "      --disable-client-cert-checking disable client SSL certificate \n"
               "                                     checking (deprecated)\n"
+           << "      --external-command-port <port>  port for the external command\n"
+              "                                     channel on 127.0.0.1 (default 8080)\n"
            << WINAPI_INFO << HELP_SYS_INFO << HELP_COMMON_INFO_2 << "\n"
            << "Default options are marked with a *\n"
            << "\n"
@@ -681,7 +683,8 @@ ServerApp::openClientListener(const NetworkAddress& address)
 Server*
 ServerApp::openServer(Config& config, PrimaryClient* primaryClient)
 {
-    Server* server = new Server(config, primaryClient, m_serverScreen, m_events, args());
+    Server* server = new Server(config, primaryClient, m_serverScreen, m_events,
+                                getSocketMultiplexer(), args());
     try {
         m_events->adoptHandler(
             m_events->forServer().disconnected(), server,

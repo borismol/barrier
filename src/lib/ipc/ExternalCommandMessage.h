@@ -3,15 +3,18 @@
 #include "base/EventTypes.h"
 #include "base/Event.h"
 
+#include <string>
+#include <utility>
+
 class ExternalCommandMessage : public EventData
 {
 public:
-    ExternalCommandMessage(std::string &&data)
-        : m_data(data)
+    ExternalCommandMessage(std::string data)
+        : m_data(std::move(data))
     {
     }
 
-    std::string getData() const
+    const std::string& getData() const
     {
         return m_data;
     }

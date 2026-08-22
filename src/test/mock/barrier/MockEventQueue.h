@@ -49,6 +49,8 @@ public:
     MOCK_METHOD0(forIpcClientProxy, IpcClientProxyEvents&());
     MOCK_METHOD0(forIpcServer, IpcServerEvents&());
     MOCK_METHOD0(forIpcServerProxy, IpcServerProxyEvents&());
+    MOCK_METHOD0(forExternalCommandClientProxy, ExternalCommandClientProxyEvents&());
+    MOCK_METHOD0(forExternalCommandServer, ExternalCommandServerEvents&());
     MOCK_METHOD0(forIDataSocket, IDataSocketEvents&());
     MOCK_METHOD0(forIListenSocket, IListenSocketEvents&());
     MOCK_METHOD0(forISocket, ISocketEvents&());

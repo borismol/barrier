@@ -61,6 +61,7 @@ Server::Server(
 		PrimaryClient* primaryClient,
 		barrier::Screen* screen,
 		IEventQueue* events,
+		SocketMultiplexer* socketMultiplexer,
 		ServerArgs const& args) :
 	m_mock(false),
 	m_primaryClient(primaryClient),
@@ -116,8 +117,23 @@ Server::Server(
 		clipboard.m_clipboardData   = clipboard.m_clipboard.marshall();
 	}
 
-	m_externalCommandServer = new ExternalCommandServer(m_events, &m_socketMultiplexer, 8080);
-	m_externalCommandServer->listen();
+	// the external command channel is unauthenticated: any process that can
+	// reach the port can synthesize input.  binding to loopback only is the
+	// sole thing limiting that, so keep it that way.
+	// a bind failure (port already in use, most likely) must not stop the
+	// server -- ExternalCommand rules just never fire.
+	try {
+		m_externalCommandServer = new ExternalCommandServer(
+				m_events, socketMultiplexer, args.m_externalCommandPort);
+		m_externalCommandServer->listen();
+		LOG((CLOG_DEBUG "external command server listening on 127.0.0.1:%d",
+				args.m_externalCommandPort));
+	}
+	catch (XSocket& e) {
+		LOG((CLOG_WARN "external command server disabled: %s", e.what()));
+		delete m_externalCommandServer;
+		m_externalCommandServer = NULL;
+	}
 
 	// install event handlers
 	m_events->adoptHandler(Event::kTimer, this,
@@ -228,10 +244,6 @@ Server::~Server()
 		return;
 	}
 
-	if (m_externalCommandServer != nullptr) {
-		delete m_externalCommandServer;
-	}
-
 	// remove event handlers and timers
 	m_events->removeHandler(m_events->forIKeyState().keyDown(),
 							m_inputFilter);
@@ -271,8 +283,13 @@ Server::~Server()
 		delete client;
 	}
 
-	// remove input filter
+	// remove input filter.  the filter's handler is keyed on the external
+	// command server, so unregister it before that server is destroyed.
 	m_inputFilter->setPrimaryClient(NULL);
+	m_inputFilter->setExternalCommandServer(NULL);
+
+	delete m_externalCommandServer;
+	m_externalCommandServer = NULL;
 
 	// disable and disconnect primary client
 	m_primaryClient->disable();

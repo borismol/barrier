@@ -32,7 +32,6 @@
 #include "common/stdmap.h"
 #include "common/stdset.h"
 #include "common/stdvector.h"
-#include "net/SocketMultiplexer.h"
 
 class BaseClientProxy;
 class EventQueueTimer;
@@ -43,6 +42,7 @@ class IEventQueue;
 class Thread;
 class ClientListener;
 class ExternalCommandServer;
+class SocketMultiplexer;
 
 //! Barrier server
 /*!
@@ -109,7 +109,8 @@ public:
     ownership of \p primaryClient.
     */
     Server(Config& config, PrimaryClient* primaryClient,
-        barrier::Screen* screen, IEventQueue* events, ServerArgs const& args);
+        barrier::Screen* screen, IEventQueue* events,
+        SocketMultiplexer* socketMultiplexer, ServerArgs const& args);
     ~Server();
 
 #ifdef BARRIER_TEST_ENV
@@ -483,6 +484,5 @@ private:
 
     ClientListener*        m_clientListener;
     ServerArgs            m_args;
-	SocketMultiplexer m_socketMultiplexer;
     ExternalCommandServer *m_externalCommandServer{nullptr};
 };

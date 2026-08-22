@@ -8,7 +8,7 @@
 #include "base/Event.h"
 
 ExternalCommandClientProxy::ExternalCommandClientProxy(barrier::IStream &stream, IEventQueue *events)
-    : m_stream(stream), m_events(events)
+    : m_stream(stream), m_disconnecting(false), m_events(events)
 {
     m_events->adoptHandler(
         m_events->forIStream().inputReady(), stream.getEventTarget(),
@@ -31,41 +31,82 @@ ExternalCommandClientProxy::ExternalCommandClientProxy(barrier::IStream &stream,
             this, &ExternalCommandClientProxy::handleWriteError));
 }
 
-void ExternalCommandClientProxy::handleData(const Event &, void *)
+ExternalCommandClientProxy::~ExternalCommandClientProxy()
 {
-    char buf[100];
-    auto n = m_stream.read(buf, 100);
-    while (n > 0)
+    m_events->removeHandler(
+        m_events->forIStream().inputReady(), m_stream.getEventTarget());
+    m_events->removeHandler(
+        m_events->forIStream().outputError(), m_stream.getEventTarget());
+    m_events->removeHandler(
+        m_events->forIStream().inputShutdown(), m_stream.getEventTarget());
+    m_events->removeHandler(
+        m_events->forIStream().outputShutdown(), m_stream.getEventTarget());
+
+    // don't delete the stream while it's being used.
     {
-        std::string str(buf, n);
-
-        size_t pos = 0;
-        while (pos < n)
-        {
-            size_t start = pos;
-            pos = str.find('|', pos);
-            if (pos == std::string::npos) {
-                // Do not expect partial data
-                LOG((CLOG_ERR "Delimiter not found %s", str.substr(start).c_str()));
-                break;
-            }
-
-            // don't delete with this event; the data is passed to a new event.
-            Event e(m_events->forExternalCommandClientProxy().messageReceived(), this, NULL, Event::kDontFreeData);
-            ExternalCommandMessage *m = new ExternalCommandMessage(str.substr(start, pos - start));
-            e.setDataObject(m);
-            m_events->addEvent(e);
-
-            pos++;
-        }
-
-        n = m_stream.read(buf, 100);
+        std::lock_guard<std::mutex> lock_read(m_readMutex);
+        std::lock_guard<std::mutex> lock_write(m_writeMutex);
+        delete &m_stream;
     }
 }
 
-void ExternalCommandClientProxy::handleDisconnect(const Event &, void *) {
-    LOG((CLOG_DEBUG "proxy disconnect"));
+void ExternalCommandClientProxy::handleData(const Event &, void *)
+{
+    // don't allow the dtor to destroy the stream while we're using it.
+    std::lock_guard<std::mutex> lock(m_readMutex);
+
+    char buf[100];
+    UInt32 n = m_stream.read(buf, sizeof(buf));
+    while (n > 0)
+    {
+        m_buffer.append(buf, n);
+
+        // consume every complete, delimiter-terminated message; whatever
+        // follows the last delimiter stays buffered for the next read.
+        size_t pos;
+        while ((pos = m_buffer.find('|')) != std::string::npos)
+        {
+            // don't delete with this event; the data is passed to a new event.
+            Event e(m_events->forExternalCommandClientProxy().messageReceived(), this, NULL,
+                    Event::kDontFreeData);
+            e.setDataObject(new ExternalCommandMessage(m_buffer.substr(0, pos)));
+            m_events->addEvent(e);
+
+            m_buffer.erase(0, pos + 1);
+        }
+
+        if (m_buffer.size() > kMaxBufferSize) {
+            LOG((CLOG_ERR "external command too long (%d bytes, no delimiter), disconnecting",
+                 m_buffer.size()));
+            m_buffer.clear();
+            disconnect();
+            return;
+        }
+
+        n = m_stream.read(buf, sizeof(buf));
+    }
 }
-void ExternalCommandClientProxy::handleWriteError(const Event &, void *) {
-    LOG((CLOG_DEBUG "proxy error"));
+
+void ExternalCommandClientProxy::handleDisconnect(const Event &, void *)
+{
+    disconnect();
+    LOG((CLOG_DEBUG "external command client disconnected"));
+}
+
+void ExternalCommandClientProxy::handleWriteError(const Event &, void *)
+{
+    disconnect();
+    LOG((CLOG_DEBUG "external command client write error"));
+}
+
+void ExternalCommandClientProxy::disconnect()
+{
+    if (m_disconnecting) {
+        return;
+    }
+
+    LOG((CLOG_DEBUG "external command disconnect, closing stream"));
+    m_disconnecting = true;
+    m_stream.close();
+    m_events->addEvent(Event(m_events->forExternalCommandClientProxy().disconnected(), this));
 }

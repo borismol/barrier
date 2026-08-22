@@ -36,7 +36,6 @@ void ExternalCommandServer::listen() {
 void ExternalCommandServer::handleClientConnecting(const Event &, void *)
 {
     barrier::IStream *stream = m_socket->accept();
-    LOG((CLOG_DEBUG "accepted ExternalCommand client connection"));
     if (stream == NULL)
     {
         return;
@@ -79,6 +78,11 @@ void ExternalCommandServer::handleClientDisconnected(const Event &e, void *)
 void ExternalCommandServer::handleMessageReceived(const Event &e, void *)
 {
     auto *m = static_cast<ExternalCommandMessage *>(e.getDataObject());
+    if (m == nullptr) {
+        LOG((CLOG_WARN "external command message is null"));
+        return;
+    }
+
     LOG((CLOG_DEBUG "External command %s", m->getData().c_str()));
     Event event(m_events->forExternalCommandServer().messageReceived(), this);
     event.setDataObject(e.getDataObject());
@@ -87,9 +91,13 @@ void ExternalCommandServer::handleMessageReceived(const Event &e, void *)
 
 ExternalCommandServer::~ExternalCommandServer()
 {
+    // remove the handler while the socket is still alive; it's the map key.
+    m_events->removeHandler(m_events->forIListenSocket().connecting(), m_socket);
+
     if (m_socket != nullptr)
     {
         delete m_socket;
+        m_socket = nullptr;
     }
 
     {
@@ -101,8 +109,6 @@ ExternalCommandServer::~ExternalCommandServer()
         }
         m_clients.clear();
     }
-
-    m_events->removeHandler(m_events->forIListenSocket().connecting(), m_socket);
 }
 
 void ExternalCommandServer::deleteClient(ExternalCommandClientProxy *proxy)

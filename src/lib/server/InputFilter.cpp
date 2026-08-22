@@ -292,7 +292,6 @@ InputFilter::EFilterStatus InputFilter::ExternalCommandCondition::match(const Ev
         return kNoMatch;
     }
     if (info->getData() == m_command) {
-        Event::deleteData(event);
         return kActivate;
     }
     return kNoMatch;
@@ -945,8 +944,8 @@ InputFilter::InputFilter(IEventQueue* events) :
 
 InputFilter::InputFilter(const InputFilter& x) :
     m_ruleList(x.m_ruleList),
-    m_externalCommandServer(NULL),
     m_primaryClient(NULL),
+    m_externalCommandServer(NULL),
     m_events(x.m_events)
 {
     setExternalCommandServer(x.m_externalCommandServer);
@@ -956,6 +955,7 @@ InputFilter::InputFilter(const InputFilter& x) :
 InputFilter::~InputFilter()
 {
     setPrimaryClient(NULL);
+    setExternalCommandServer(NULL);
 }
 
 InputFilter&
@@ -963,11 +963,14 @@ InputFilter::operator=(const InputFilter& x)
 {
     if (&x != this) {
         PrimaryClient* oldClient = m_primaryClient;
+        ExternalCommandServer* oldCommandServer = m_externalCommandServer;
         setPrimaryClient(NULL);
+        setExternalCommandServer(NULL);
 
         m_ruleList = x.m_ruleList;
 
         setPrimaryClient(oldClient);
+        setExternalCommandServer(oldCommandServer);
     }
     return *this;
 }

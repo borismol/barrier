@@ -51,6 +51,11 @@ public:
 
         virtual EFilterStatus    match(const Event&) = 0;
 
+        // true for conditions that only ever activate and are never
+        // deactivated.  paired actions (keystroke, mousebutton) must put both
+        // halves on the activate list for these, or the release never happens.
+        virtual bool            isOneShot() const { return false; }
+
         virtual void            enablePrimary(PrimaryClient*);
         virtual void            disablePrimary(PrimaryClient*);
     };
@@ -123,6 +128,7 @@ public:
         Condition *clone() const override;
         std::string format() const override;
         EFilterStatus match(const Event &) override;
+        bool isOneShot() const override { return true; }
 
     private:
         std::string m_command;

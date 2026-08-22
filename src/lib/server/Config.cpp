@@ -1079,6 +1079,14 @@ InputFilter::Condition* Config::parseCondition(ConfigReadContext& s, const std::
 	throw XConfigRead(s, "unknown argument \"%{1}\"", name);
 }
 
+// true if the rule's condition only ever activates, so paired actions must put
+// both halves on the activate list.
+static bool isOneShotRule(const InputFilter::Rule& rule)
+{
+	const InputFilter::Condition* condition = rule.getCondition();
+	return condition != NULL && condition->isOneShot();
+}
+
 void Config::parseAction(ConfigReadContext& s, const std::string& name,
                          const std::vector<std::string>& args,
                          InputFilter::Rule& rule, bool activate)
@@ -1106,7 +1114,11 @@ void Config::parseAction(ConfigReadContext& s, const std::string& name,
 			action = new InputFilter::KeystrokeAction(m_events, keyInfo2, true);
 			rule.adoptAction(action, true);
 			action   = new InputFilter::KeystrokeAction(m_events, keyInfo, false);
-			//activate = false;
+			// a one-shot condition never deactivates, so the key up has to go
+			// on the activate list too or the key would stay down forever.
+			if (!isOneShotRule(rule)) {
+				activate = false;
+			}
 		}
 		else if (name == "keyDown") {
 			action = new InputFilter::KeystrokeAction(m_events, keyInfo, true);
@@ -1130,7 +1142,9 @@ void Config::parseAction(ConfigReadContext& s, const std::string& name,
 			action = new InputFilter::MouseButtonAction(m_events, mouseInfo2, true);
 			rule.adoptAction(action, true);
 			action   = new InputFilter::MouseButtonAction(m_events, mouseInfo, false);
-			activate = false;
+			if (!isOneShotRule(rule)) {
+				activate = false;
+			}
 		}
 		else if (name == "mouseDown") {
 			action = new InputFilter::MouseButtonAction(m_events, mouseInfo, true);

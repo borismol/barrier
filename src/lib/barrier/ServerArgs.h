@@ -31,4 +31,6 @@ public:
     Config*                m_config;
     String                m_screenChangeScript;
     bool check_client_certificates = true;
+    //! Port for the external command channel, bound on 127.0.0.1.
+    int m_externalCommandPort = 8080;
 };

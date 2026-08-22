@@ -26,6 +26,8 @@
 #include "base/String.h"
 #include "io/filesystem.h"
 
+#include <cstdlib>
+
 #ifdef WINAPI_MSWINDOWS
 #include <VersionHelpers.h>
 #endif
@@ -67,6 +69,16 @@ ArgParser::parseServerArgs(ServerArgs& args, int argc, const char* const* argv)
         }
         else if (isArg(i, argc, argv, nullptr, "--disable-client-cert-checking")) {
             args.check_client_certificates = false;
+        }
+        else if (isArg(i, argc, argv, NULL, "--external-command-port", 1)) {
+            // port for the external command channel (loopback only)
+            int port = std::atoi(argv[++i]);
+            if (port <= 0 || port > 65535) {
+                LOG((CLOG_PRINT "%s: invalid port for `--external-command-port': `%s'" BYE,
+                     args.m_exename.c_str(), argv[i], args.m_exename.c_str()));
+                return false;
+            }
+            args.m_externalCommandPort = port;
         } else {
             LOG((CLOG_PRINT "%s: unrecognized option `%s'" BYE, args.m_exename.c_str(), argv[i], args.m_exename.c_str()));
             return false;

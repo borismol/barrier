@@ -168,11 +168,20 @@ Log::print(const char* file, int line, const char* fmt, ...)
     // do not prefix time and file for kPRINT (CLOG_PRINT)
     if (priority != kPRINT) {
         auto now = std::chrono::system_clock::now();
-        auto ms = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()) % 1000000;
+        auto us = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()) % 1000000;
         std::time_t t = std::chrono::system_clock::to_time_t(now);
         char timestamp[56];
-        struct tm *tm = localtime(reinterpret_cast<time_t *>(&t));
-        sprintf(timestamp, "%04i-%02i-%02iT%02i:%02i:%02i.%05i", tm->tm_year + 1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, static_cast<int>(ms.count()));
+
+        // localtime() is not thread safe and print() is called from many threads.
+        struct tm tm_buf;
+#if defined(_WIN32)
+        localtime_s(&tm_buf, &t);
+#else
+        localtime_r(&t, &tm_buf);
+#endif
+        struct tm *tm = &tm_buf;
+
+        sprintf(timestamp, "%04i-%02i-%02iT%02i:%02i:%02i.%06i", tm->tm_year + 1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, static_cast<int>(us.count()));
 
         // square brackets, spaces, comma and null terminator take about 10
         size_t size = 10;

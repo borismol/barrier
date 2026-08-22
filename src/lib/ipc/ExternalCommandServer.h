@@ -7,6 +7,8 @@
 class ExternalCommandClientProxy;
 class TCPListenSocket;
 class SocketMultiplexer;
+class IEventQueue;
+class Event;
 
 class ExternalCommandServer
 {
@@ -14,6 +16,7 @@ public:
     ExternalCommandServer(IEventQueue *events, SocketMultiplexer *socketMultiplexer, int port);
     ~ExternalCommandServer();
 
+    //! Bind the listen socket. Throws XSocket if the port is unavailable.
     void listen();
 
 private:
