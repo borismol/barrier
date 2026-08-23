@@ -56,6 +56,14 @@ public:
     */
     virtual bool        isPrimary() const { return false; }
 
+    //! Test for relative mouse move support
+    /*!
+    Return true if the client understands \c kMsgDMouseRelMove, which was
+    added in protocol version 1.2.  Older clients discard the message, so
+    the server must drive them with absolute positions instead.
+    */
+    virtual bool        supportsRelativeMoves() const { return false; }
+
     //@}
 
     // IScreen

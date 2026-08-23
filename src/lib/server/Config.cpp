@@ -738,6 +738,9 @@ Config::readSectionOptions(ConfigReadContext& s)
 		else if (name == "relativeMouseMoves") {
 			addOption("", kOptionRelativeMouseMoves, s.parseBoolean(value));
 		}
+		else if (name == "relativeMouseMovesAlways") {
+			addOption("", kOptionRelativeMouseMovesAlways, s.parseBoolean(value));
+		}
 		else if (name == "win32KeepForeground") {
 			addOption("", kOptionWin32KeepForeground, s.parseBoolean(value));
 		}
@@ -1377,6 +1380,9 @@ Config::getOptionName(OptionID id)
 	if (id == kOptionRelativeMouseMoves) {
 		return "relativeMouseMoves";
 	}
+	if (id == kOptionRelativeMouseMovesAlways) {
+		return "relativeMouseMovesAlways";
+	}
 	if (id == kOptionWin32KeepForeground) {
 		return "win32KeepForeground";
 	}
@@ -1400,6 +1406,7 @@ std::string Config::getOptionValue(OptionID id, OptionValue value)
 		id == kOptionScreenSaverSync ||
 		id == kOptionXTestXineramaUnaware ||
 		id == kOptionRelativeMouseMoves ||
+		id == kOptionRelativeMouseMovesAlways ||
 		id == kOptionWin32KeepForeground ||
 		id == kOptionScreenPreserveFocus ||
 		id == kOptionClipboardSharing) {

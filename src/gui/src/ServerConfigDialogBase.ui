@@ -442,6 +442,19 @@ Double click on a screen to edit its settings.</string>
             </property>
            </widget>
           </item>
+          <item row="4" column="0">
+           <widget class="QCheckBox" name="m_pCheckBoxRelativeMouseMovesAlways">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="text">
+             <string>Use relative mouse moves even when &amp;not locked to a screen</string>
+            </property>
+            <property name="toolTip">
+             <string>Send mouse motion to clients as relative deltas instead of absolute positions. Fixes over-sensitive camera motion in games and other programs that capture the cursor.</string>
+            </property>
+           </widget>
+          </item>
           <item row="2" column="0">
            <widget class="QCheckBox" name="m_pCheckBoxScreenSaverSync">
             <property name="enabled">

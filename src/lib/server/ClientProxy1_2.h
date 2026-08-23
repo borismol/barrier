@@ -30,4 +30,7 @@ public:
 
     // IClient overrides
     virtual void        mouseRelativeMove(SInt32 xRel, SInt32 yRel);
+
+    // BaseClientProxy overrides
+    virtual bool        supportsRelativeMoves() const { return true; }
 };

@@ -717,14 +717,18 @@ ServerProxy::mouseMove()
         m_compressMouse = true;
     }
 
+    // an absolute move supersedes any relative motion we were holding on
+    // to.  this must happen whether or not we are compressing, otherwise
+    // stale deltas get flushed *after* this move and offset the cursor.
+    m_compressMouseRelative = false;
+    m_dxMouse = 0;
+    m_dyMouse = 0;
+
     // if compressing then ignore the motion but record it
     if (m_compressMouse) {
-        m_compressMouseRelative = false;
         ignore    = true;
         m_xMouse  = x;
         m_yMouse  = y;
-        m_dxMouse = 0;
-        m_dyMouse = 0;
     }
     LOG((CLOG_DEBUG2 "recv mouse move %d,%d", x, y));
 

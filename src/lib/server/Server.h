@@ -287,6 +287,10 @@ private:
     // stop relative mouse moves
     void                stopRelativeMoves();
 
+    // test if all motion on the active client should be sent as relative
+    // deltas rather than absolute positions
+    bool                useAlwaysRelativeMoves() const;
+
     // send screen options to \c client
     void                sendOptions(BaseClientProxy* client) const;
 
@@ -452,8 +456,9 @@ private:
     bool                m_switchNeedsControl;
     bool                m_switchNeedsAlt;
 
-    // relative mouse move option
+    // relative mouse move options
     bool                m_relativeMoves;
+    bool                m_relativeMovesAlways;
 
     // flag whether or not we have broadcasting enabled and the screens to
     // which we should send broadcasted keys.

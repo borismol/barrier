@@ -86,6 +86,7 @@ Server::Server(
 	m_switchNeedsControl(false),
 	m_switchNeedsAlt(false),
 	m_relativeMoves(false),
+	m_relativeMovesAlways(false),
 	m_keyboardBroadcasting(false),
 	m_lockedToScreen(false),
 	m_screen(screen),
@@ -1102,10 +1103,20 @@ Server::getCorner(BaseClientProxy* client,
 	return kNoCornerMask;
 }
 
+bool
+Server::useAlwaysRelativeMoves() const
+{
+	return m_relativeMovesAlways &&
+			m_active != NULL &&
+			m_active != m_primaryClient &&
+			m_active->supportsRelativeMoves();
+}
+
 void
 Server::stopRelativeMoves()
 {
-	if (m_relativeMoves && m_active != m_primaryClient) {
+	if ((m_relativeMoves || m_relativeMovesAlways) &&
+			m_active != m_primaryClient) {
 		// warp to the center of the active client so we know where we are
 		SInt32 ax, ay, aw, ah;
 		m_active->getShape(ax, ay, aw, ah);
@@ -1168,6 +1179,7 @@ Server::processOptions()
 	m_switchNeedsAlt = false;		// doesn't work correct.
 
 	bool newRelativeMoves = m_relativeMoves;
+	bool newRelativeMovesAlways = m_relativeMovesAlways;
 	for (Config::ScreenOptions::const_iterator index = options->begin();
 								index != options->end(); ++index) {
 		const OptionID id       = index->first;
@@ -1198,6 +1210,9 @@ Server::processOptions()
 		else if (id == kOptionRelativeMouseMoves) {
 			newRelativeMoves = (value != 0);
 		}
+		else if (id == kOptionRelativeMouseMovesAlways) {
+			newRelativeMovesAlways = (value != 0);
+		}
 		else if (id == kOptionClipboardSharing) {
 			m_enableClipboard = (value != 0);
 
@@ -1206,10 +1221,16 @@ Server::processOptions()
 			}
 		}
 	}
-	if (m_relativeMoves && !newRelativeMoves) {
+	// if we were sending relative moves and are about to stop then the
+	// client's cursor may not be where we think it is, so put it somewhere
+	// known.  stopRelativeMoves() tests the *old* flags, which are still in
+	// place at this point, so this must happen before the assignments below.
+	if ((m_relativeMoves && !newRelativeMoves) ||
+			(m_relativeMovesAlways && !newRelativeMovesAlways)) {
 		stopRelativeMoves();
 	}
-	m_relativeMoves = newRelativeMoves;
+	m_relativeMoves       = newRelativeMoves;
+	m_relativeMovesAlways = newRelativeMovesAlways;
 }
 
 void
@@ -1531,7 +1552,10 @@ Server::handleLockCursorToScreenEvent(const Event& event, void*)
 		LOG((CLOG_NOTE "cursor %s current screen", m_lockedToScreen ? "locked to" : "unlocked from"));
 
 		m_primaryClient->reconfigure(getActivePrimarySides());
-		if (!isLockedToScreenServer()) {
+		// "always" mode keeps the virtual cursor position up to date even
+		// while locked, so there is nothing to resynchronize on unlock and
+		// no reason to yank the client cursor to the middle of its screen.
+		if (!isLockedToScreenServer() && !useAlwaysRelativeMoves()) {
 			stopRelativeMoves();
 		}
 	}
@@ -1928,13 +1952,22 @@ Server::onMouseMoveSecondary(SInt32 dx, SInt32 dy)
 		return;
 	}
 
+	// in "always" mode we keep tracking the virtual cursor position -- so
+	// edge detection, switch delay, two tap, corners and the switch
+	// modifiers all keep working -- but we drive the client with deltas
+	// instead of absolute positions.  an absolute warp breaks any program
+	// that warps the cursor itself:  a game that recenters it every frame
+	// reads (m_x - itsCenter) instead of dx and the camera flies.
+	const bool relativeAlways = useAlwaysRelativeMoves();
+
 	// if doing relative motion on secondary screens and we're locked
 	// to the screen (which activates relative moves) then send a
 	// relative mouse motion.  when we're doing this we pretend as if
 	// the mouse isn't actually moving because we're expecting some
 	// program on the secondary screen to warp the mouse on us, so we
-	// have no idea where it really is.
-	if (m_relativeMoves && isLockedToScreenServer()) {
+	// have no idea where it really is.  "always" mode never takes this
+	// shortcut because it has to keep the virtual position up to date.
+	if (m_relativeMoves && !relativeAlways && isLockedToScreenServer()) {
 		LOG((CLOG_DEBUG2 "relative move on %s by %d,%d", getName(m_active).c_str(), dx, dy));
 		m_active->mouseRelativeMove(dx, dy);
 		return;
@@ -2077,10 +2110,21 @@ Server::onMouseMoveSecondary(SInt32 dx, SInt32 dy)
 			LOG((CLOG_DEBUG2 "clamp to bottom of \"%s\"", getName(m_active).c_str()));
 		}
 
-		// warp cursor if it moved.
-		if (m_x != xOld || m_y != yOld) {
-			LOG((CLOG_DEBUG2 "move on %s to %d,%d", getName(m_active).c_str(), m_x, m_y));
-			m_active->mouseMove(m_x, m_y);
+		// move the cursor if it moved.  note that the delta we send is the
+		// clamped one and not dx,dy:  while pinned against an edge the
+		// virtual position stops moving, so the client cursor must stop too
+		// or it would drift away from m_x,m_y for good.
+		const SInt32 dxSend = m_x - xOld;
+		const SInt32 dySend = m_y - yOld;
+		if (dxSend != 0 || dySend != 0) {
+			if (relativeAlways) {
+				LOG((CLOG_DEBUG2 "move on %s by %d,%d", getName(m_active).c_str(), dxSend, dySend));
+				m_active->mouseRelativeMove(dxSend, dySend);
+			}
+			else {
+				LOG((CLOG_DEBUG2 "move on %s to %d,%d", getName(m_active).c_str(), m_x, m_y));
+				m_active->mouseMove(m_x, m_y);
+			}
 		}
 	}
 }

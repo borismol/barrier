@@ -50,6 +50,7 @@ class ServerConfig : public BaseConfig
         bool hasHeartbeat() const { return m_HasHeartbeat; }
         int heartbeat() const { return m_Heartbeat; }
         bool relativeMouseMoves() const { return m_RelativeMouseMoves; }
+        bool relativeMouseMovesAlways() const { return m_RelativeMouseMovesAlways; }
         bool screenSaverSync() const { return m_ScreenSaverSync; }
         bool win32KeepForeground() const { return m_Win32KeepForeground; }
         bool hasSwitchDelay() const { return m_HasSwitchDelay; }
@@ -81,6 +82,7 @@ class ServerConfig : public BaseConfig
         void haveHeartbeat(bool on) { m_HasHeartbeat = on; }
         void setHeartbeat(int val) { m_Heartbeat = val; }
         void setRelativeMouseMoves(bool on) { m_RelativeMouseMoves = on; }
+        void setRelativeMouseMovesAlways(bool on) { m_RelativeMouseMovesAlways = on; }
         void setScreenSaverSync(bool on) { m_ScreenSaverSync = on; }
         void setWin32KeepForeground(bool on) { m_Win32KeepForeground = on; }
         void haveSwitchDelay(bool on) { m_HasSwitchDelay = on; }
@@ -112,6 +114,7 @@ class ServerConfig : public BaseConfig
         bool m_HasHeartbeat;
         int m_Heartbeat;
         bool m_RelativeMouseMoves;
+        bool m_RelativeMouseMovesAlways;
         bool m_ScreenSaverSync;
         bool m_Win32KeepForeground;
         bool m_HasSwitchDelay;

@@ -109,6 +109,7 @@ void ServerConfig::saveSettings()
     settings().setValue("hasHeartbeat", hasHeartbeat());
     settings().setValue("heartbeat", heartbeat());
     settings().setValue("relativeMouseMoves", relativeMouseMoves());
+    settings().setValue("relativeMouseMovesAlways", relativeMouseMovesAlways());
     settings().setValue("screenSaverSync", screenSaverSync());
     settings().setValue("win32KeepForeground", win32KeepForeground());
     settings().setValue("hasSwitchDelay", hasSwitchDelay());
@@ -154,6 +155,7 @@ void ServerConfig::loadSettings()
     haveHeartbeat(settings().value("hasHeartbeat", false).toBool());
     setHeartbeat(settings().value("heartbeat", 5000).toInt());
     setRelativeMouseMoves(settings().value("relativeMouseMoves", false).toBool());
+    setRelativeMouseMovesAlways(settings().value("relativeMouseMovesAlways", false).toBool());
     setScreenSaverSync(settings().value("screenSaverSync", true).toBool());
     setWin32KeepForeground(settings().value("win32KeepForeground", false).toBool());
     haveSwitchDelay(settings().value("hasSwitchDelay", false).toBool());
@@ -251,6 +253,7 @@ QTextStream& operator<<(QTextStream& outStream, const ServerConfig& config)
         outStream << "\t" << "heartbeat = " << config.heartbeat() << endl;
 
     outStream << "\t" << "relativeMouseMoves = " << (config.relativeMouseMoves() ? "true" : "false") << endl;
+    outStream << "\t" << "relativeMouseMovesAlways = " << (config.relativeMouseMovesAlways() ? "true" : "false") << endl;
     outStream << "\t" << "screenSaverSync = " << (config.screenSaverSync() ? "true" : "false") << endl;
     outStream << "\t" << "win32KeepForeground = " << (config.win32KeepForeground() ? "true" : "false") << endl;
     outStream << "\t" << "clipboardSharing = " << (config.clipboardSharing() ? "true" : "false") << endl;
