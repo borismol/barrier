@@ -97,7 +97,10 @@ public:
     virtual void        setOptions(const OptionsList& options) = 0;
     virtual void        setSequenceNumber(UInt32) = 0;
     virtual bool        isPrimary() const = 0;
-    
+
+    // IPlatformScreen overrides
+    virtual bool        canFakeInputOnPrimary() const { return false; }
+
     virtual void        fakeDraggingFiles(DragFileList fileList) { throw std::runtime_error("fakeDraggingFiles not implemented"); }
     virtual const String&
                         getDropTarget() const { throw std::runtime_error("getDropTarget not implemented"); }

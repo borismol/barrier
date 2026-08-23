@@ -117,6 +117,7 @@ public:
     virtual void        setOptions(const OptionsList& options);
     virtual void        setSequenceNumber(UInt32);
     virtual bool        isPrimary() const;
+    virtual bool        canFakeInputOnPrimary() const;
     virtual void        fakeDraggingFiles(DragFileList fileList);
     virtual std::string& getDraggingFilename();
     virtual const std::string& getDropTarget() const;

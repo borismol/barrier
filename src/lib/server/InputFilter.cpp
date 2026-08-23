@@ -670,6 +670,10 @@ void
 InputFilter::MouseButtonAction::perform(const Event& event)
 
 {
+    m_events->addEvent(Event(m_events->forIPrimaryScreen().fakeInputBegin(),
+                                event.getTarget(), NULL,
+                                Event::kDeliverImmediately));
+
     // send modifiers
     IPlatformScreen::KeyInfo* modifierInfo = NULL;
     if (m_buttonInfo->m_mask != 0) {
@@ -687,6 +691,10 @@ InputFilter::MouseButtonAction::perform(const Event& event)
     m_events->addEvent(Event(type, event.getTarget(), m_buttonInfo,
                                 Event::kDeliverImmediately |
                                 Event::kDontFreeData));
+
+    m_events->addEvent(Event(m_events->forIPrimaryScreen().fakeInputEnd(),
+                                event.getTarget(), NULL,
+                                Event::kDeliverImmediately));
 }
 
 const char*

@@ -143,6 +143,15 @@ public:
     */
     virtual bool        isPrimary() const = 0;
 
+    //! Test if fake input can be injected on the primary screen
+    /*!
+    Return true iff this backend can safely synthesize key/mouse input on
+    itself while it is the focused primary screen, without that input being
+    picked back up and re-processed as new real input (i.e. without causing
+    a feedback loop through this screen's own input capture).
+    */
+    virtual bool        canFakeInputOnPrimary() const = 0;
+
     //@}
 
     // IScreen overrides

@@ -483,6 +483,17 @@ MSWindowsScreen::isPrimary() const
     return m_isPrimary;
 }
 
+bool
+MSWindowsScreen::canFakeInputOnPrimary() const
+{
+    // safe: while the primary has local focus (m_isOnScreen), the low-level
+    // hook runs in kHOOK_WATCH_JUMP_ZONE mode (see enter()/enable()), not
+    // kHOOK_RELAY_EVENTS, so it never swallows or re-routes a synthetic
+    // event we inject here -- it just passes through to the OS, same as
+    // fakeDraggingFiles() already relies on.
+    return true;
+}
+
 void*
 MSWindowsScreen::getEventTarget() const
 {

@@ -19,6 +19,7 @@
 #include "server/PrimaryClient.h"
 
 #include "barrier/Screen.h"
+#include "barrier/IPlatformScreen.h"
 #include "barrier/Clipboard.h"
 #include "base/Log.h"
 
@@ -186,12 +187,9 @@ PrimaryClient::setClipboardDirty(ClipboardID id, bool dirty)
 void
 PrimaryClient::keyDown(KeyID key, KeyModifierMask mask, KeyButton button)
 {
-    if (m_fakeInputCount > 0) {
-// XXX -- don't forward keystrokes to primary screen for now
-        (void)key;
-        (void)mask;
-        (void)button;
-//        m_screen->keyDown(key, mask, button);
+    if (m_fakeInputCount > 0 &&
+        m_screen->getPlatformScreen()->canFakeInputOnPrimary()) {
+        m_screen->keyDown(key, mask, button);
     }
 }
 
@@ -204,25 +202,28 @@ PrimaryClient::keyRepeat(KeyID, KeyModifierMask, SInt32, KeyButton)
 void
 PrimaryClient::keyUp(KeyID key, KeyModifierMask mask, KeyButton button)
 {
-    if (m_fakeInputCount > 0) {
-// XXX -- don't forward keystrokes to primary screen for now
-        (void)key;
-        (void)mask;
-        (void)button;
-//        m_screen->keyUp(key, mask, button);
+    if (m_fakeInputCount > 0 &&
+        m_screen->getPlatformScreen()->canFakeInputOnPrimary()) {
+        m_screen->keyUp(key, mask, button);
     }
 }
 
 void
-PrimaryClient::mouseDown(ButtonID)
+PrimaryClient::mouseDown(ButtonID button)
 {
-    // ignore
+    if (m_fakeInputCount > 0 &&
+        m_screen->getPlatformScreen()->canFakeInputOnPrimary()) {
+        m_screen->mouseDown(button);
+    }
 }
 
 void
-PrimaryClient::mouseUp(ButtonID)
+PrimaryClient::mouseUp(ButtonID button)
 {
-    // ignore
+    if (m_fakeInputCount > 0 &&
+        m_screen->getPlatformScreen()->canFakeInputOnPrimary()) {
+        m_screen->mouseUp(button);
+    }
 }
 
 void
