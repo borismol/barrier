@@ -2110,21 +2110,24 @@ Server::onMouseMoveSecondary(SInt32 dx, SInt32 dy)
 			LOG((CLOG_DEBUG2 "clamp to bottom of \"%s\"", getName(m_active).c_str()));
 		}
 
-		// move the cursor if it moved.  note that the delta we send is the
-		// clamped one and not dx,dy:  while pinned against an edge the
-		// virtual position stops moving, so the client cursor must stop too
-		// or it would drift away from m_x,m_y for good.
-		const SInt32 dxSend = m_x - xOld;
-		const SInt32 dySend = m_y - yOld;
-		if (dxSend != 0 || dySend != 0) {
-			if (relativeAlways) {
-				LOG((CLOG_DEBUG2 "move on %s by %d,%d", getName(m_active).c_str(), dxSend, dySend));
-				m_active->mouseRelativeMove(dxSend, dySend);
+		if (relativeAlways) {
+			// forward the raw delta, not the clamped one.  the virtual
+			// position m_x,m_y is only an estimate of where the client
+			// cursor is:  a program that captures or recenters the cursor
+			// (a game rotating the view) keeps the real cursor near the
+			// middle of the client screen while m_x,m_y drifts to an
+			// edge.  sending the clamped delta would then drop all
+			// motion toward that edge.  when the cursor really is at the
+			// edge the client OS clamps it by itself.
+			if (dx != 0 || dy != 0) {
+				LOG((CLOG_DEBUG2 "move on %s by %d,%d", getName(m_active).c_str(), dx, dy));
+				m_active->mouseRelativeMove(dx, dy);
 			}
-			else {
-				LOG((CLOG_DEBUG2 "move on %s to %d,%d", getName(m_active).c_str(), m_x, m_y));
-				m_active->mouseMove(m_x, m_y);
-			}
+		}
+		else if (m_x != xOld || m_y != yOld) {
+			// warp cursor if it moved.
+			LOG((CLOG_DEBUG2 "move on %s to %d,%d", getName(m_active).c_str(), m_x, m_y));
+			m_active->mouseMove(m_x, m_y);
 		}
 	}
 }

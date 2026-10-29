@@ -1,0 +1,5 @@
+Fixed mouse motion toward a screen edge being dropped on the client when
+``relativeMouseMovesAlways`` is enabled and a program on the client (such as a
+game) recenters the cursor. The server now forwards the raw mouse deltas instead
+of deltas clamped against its own estimate of the cursor position. Moving the
+mouse to the server screen and back is no longer needed to restore full motion.
