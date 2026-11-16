@@ -25,6 +25,7 @@
 #include "base/TMethodEventJob.h"
 #include "ipc/ExternalCommandServer.h"
 #include "ipc/ExternalCommandMessage.h"
+#include "arch/Arch.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -601,19 +602,13 @@ std::string InputFilter::KeystrokeAction::format() const
 void
 InputFilter::KeystrokeAction::perform(const Event& event)
 {
-    Event::Type type = m_press ?
-        m_events->forIKeyState().keyDown() :
-        m_events->forIKeyState().keyUp();
-
-    m_events->addEvent(Event(m_events->forIPrimaryScreen().fakeInputBegin(),
-                                event.getTarget(), NULL,
-                                Event::kDeliverImmediately));
-    m_events->addEvent(Event(type, event.getTarget(), m_keyInfo,
-                                Event::kDeliverImmediately |
-                                Event::kDontFreeData));
-    m_events->addEvent(Event(m_events->forIPrimaryScreen().fakeInputEnd(),
-                                event.getTarget(), NULL,
-                                Event::kDeliverImmediately));
+    // Actions are only ever performed from InputFilter::handleEvent, which
+    // retargets the event at the InputFilter that owns the rule.  Route the
+    // synthetic key event through the filter's deferred keystroke queue so
+    // presses and releases get a human-like hold time instead of arriving
+    // back-to-back (see InputFilter::enqueueKeystroke).
+    auto* filter = static_cast<InputFilter*>(event.getTarget());
+    filter->enqueueKeystroke(*m_keyInfo, m_press);
 }
 
 const char*
@@ -947,7 +942,7 @@ InputFilter::InputFilter(IEventQueue* events) :
     m_externalCommandServer(NULL),
     m_events(events)
 {
-    // do nothing
+    adoptPendingKeyTimerHandler();
 }
 
 InputFilter::InputFilter(const InputFilter& x) :
@@ -956,6 +951,9 @@ InputFilter::InputFilter(const InputFilter& x) :
     m_externalCommandServer(NULL),
     m_events(x.m_events)
 {
+    // note: the pending keystroke queue is intentionally not copied; each
+    // filter instance drains its own queue.
+    adoptPendingKeyTimerHandler();
     setExternalCommandServer(x.m_externalCommandServer);
     setPrimaryClient(x.m_primaryClient);
 }
@@ -964,6 +962,141 @@ InputFilter::~InputFilter()
 {
     setPrimaryClient(NULL);
     setExternalCommandServer(NULL);
+    clearPendingKeys();
+    if (m_events != NULL) {
+        m_events->removeHandler(Event::kTimer, this);
+    }
+}
+
+void
+InputFilter::adoptPendingKeyTimerHandler()
+{
+    if (m_events == NULL) {
+        return;
+    }
+    m_events->adoptHandler(Event::kTimer, this,
+                            new TMethodEventJob<InputFilter>(this,
+                                &InputFilter::handlePendingKeyTimer));
+}
+
+// -----------------------------------------------------------------------------
+// Deferred Synthetic Keystrokes
+// -----------------------------------------------------------------------------
+
+double
+InputFilter::randomHoldTime()
+{
+    std::uniform_real_distribution<double> dist(0.050, 0.120);
+    return dist(m_rng);
+}
+
+double
+InputFilter::randomGapTime()
+{
+    std::uniform_real_distribution<double> dist(0.030, 0.100);
+    return dist(m_rng);
+}
+
+void
+InputFilter::sendPendingKey(IPlatformScreen::KeyInfo* info, bool press)
+{
+    Event::Type type = press ?
+        m_events->forIKeyState().keyDown() :
+        m_events->forIKeyState().keyUp();
+
+    // send immediately, bracketed by fake input markers, exactly like an
+    // un-deferred keystroke action.
+    m_events->addEvent(Event(m_events->forIPrimaryScreen().fakeInputBegin(),
+                                this, NULL,
+                                Event::kDeliverImmediately));
+    m_events->addEvent(Event(type, this, info,
+                                Event::kDeliverImmediately |
+                                Event::kDontFreeData));
+    m_events->addEvent(Event(m_events->forIPrimaryScreen().fakeInputEnd(),
+                                this, NULL,
+                                Event::kDeliverImmediately));
+
+    // the queue owns its own copy of the info
+    free(info);
+}
+
+void
+InputFilter::enqueueKeystroke(const IPlatformScreen::KeyInfo& info, bool press)
+{
+    if (m_pendingKeys.empty() && press) {
+        // first press of a sequence: deliver immediately, no added latency
+        sendPendingKey(IKeyState::KeyInfo::alloc(info), true);
+        return;
+    }
+
+    PendingKey key;
+    key.m_info = IKeyState::KeyInfo::alloc(info);
+    key.m_press = press;
+    if (m_pendingKeys.empty()) {
+        // lone release (a keyUp action with no queued press)
+        key.m_dueTime = ARCH->time() + randomHoldTime();
+    }
+    else if (press) {
+        // gap after the previous entry (the previous release)
+        key.m_dueTime = m_pendingKeys.back().m_dueTime + randomGapTime();
+    }
+    else {
+        // hold the key down for a moment before releasing it
+        key.m_dueTime = m_pendingKeys.back().m_dueTime + randomHoldTime();
+    }
+    m_pendingKeys.push_back(key);
+    armPendingKeyTimer();
+}
+
+void
+InputFilter::armPendingKeyTimer()
+{
+    if (m_pendingKeys.empty() || m_pendingKeyTimer != NULL) {
+        // nothing to wait for, or already armed for the queue head.  the
+        // head only changes when entries are drained, at which point the
+        // timer has already been deleted and this re-arms it.
+        return;
+    }
+
+    double duration = m_pendingKeys.front().m_dueTime - ARCH->time();
+    if (duration < 0.001) {
+        // newOneShotTimer requires a positive duration
+        duration = 0.001;
+    }
+    m_pendingKeyTimer = m_events->newOneShotTimer(duration, this);
+}
+
+void
+InputFilter::handlePendingKeyTimer(const Event&, void*)
+{
+    if (m_pendingKeyTimer != NULL) {
+        m_events->deleteTimer(m_pendingKeyTimer);
+        m_pendingKeyTimer = NULL;
+    }
+
+    double now = ARCH->time();
+    while (!m_pendingKeys.empty() && m_pendingKeys.front().m_dueTime <= now) {
+        PendingKey key = m_pendingKeys.front();
+        m_pendingKeys.pop_front();
+        sendPendingKey(key.m_info, key.m_press);
+    }
+
+    // re-arm for the next entry, if any
+    armPendingKeyTimer();
+}
+
+void
+InputFilter::clearPendingKeys()
+{
+    if (m_pendingKeyTimer != NULL && m_events != NULL) {
+        m_events->deleteTimer(m_pendingKeyTimer);
+        m_pendingKeyTimer = NULL;
+    }
+    while (!m_pendingKeys.empty()) {
+        PendingKey key = m_pendingKeys.front();
+        m_pendingKeys.pop_front();
+        free(key.m_info);
+    }
 }
 
 InputFilter&

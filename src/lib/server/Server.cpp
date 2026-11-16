@@ -50,8 +50,6 @@
 #include <fstream>
 #include <ctime>
 #include <stdexcept>
-#include <thread>
-#include <chrono>
 //
 // Server
 //
@@ -1728,8 +1726,6 @@ Server::onKeyUp(KeyID id, KeyModifierMask mask, KeyButton button,
 		for (ClientList::const_iterator index = m_clients.begin();
 								index != m_clients.end(); ++index) {
 			if (IKeyState::KeyInfo::contains(screens, index->first)) {
-				using namespace std::chrono_literals;
-				std::this_thread::sleep_for(60ms);
 				index->second->keyUp(id, mask, button);
 			}
 		}

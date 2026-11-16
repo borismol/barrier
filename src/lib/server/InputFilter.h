@@ -25,9 +25,13 @@
 #include "common/stdmap.h"
 #include "common/stdset.h"
 
+#include <deque>
+#include <random>
+
 class PrimaryClient;
 class Event;
 class IEventQueue;
+class EventQueueTimer;
 class ExternalCommandServer;
 
 class InputFilter {
@@ -354,7 +358,7 @@ public:
     virtual ~InputFilter();
 
 #ifdef BARRIER_TEST_ENV
-    InputFilter() : m_primaryClient(NULL) { }
+    InputFilter() : m_primaryClient(NULL), m_externalCommandServer(NULL), m_events(NULL) { }
 #endif
 
     InputFilter&        operator=(const InputFilter&);
@@ -388,9 +392,38 @@ private:
     // event handling
     void                handleEvent(const Event&, void*);
 
+    // deferred synthetic keystrokes.  keystroke actions perform their
+    // press and release back-to-back, so without a pause the client gets
+    // the key down and up at the same instant.  each synthetic key event
+    // is queued and delivered by a one-shot timer instead: the release is
+    // held for a random human-like duration and consecutive keystrokes of
+    // a rule are separated by a random gap.  real (user) keystrokes are
+    // unaffected; they arrive with natural timing already.
+    struct PendingKey {
+        IPlatformScreen::KeyInfo*    m_info;
+        bool                        m_press;
+        double                        m_dueTime;
+    };
+
+    void                enqueueKeystroke(const IPlatformScreen::KeyInfo& info,
+                            bool press);
+    void                adoptPendingKeyTimerHandler();
+    void                handlePendingKeyTimer(const Event&, void*);
+    void                sendPendingKey(IPlatformScreen::KeyInfo* info,
+                            bool press);
+    void                armPendingKeyTimer();
+    void                clearPendingKeys();
+
+    // random human-like durations, in seconds
+    double                randomHoldTime();    // between key down and key up
+    double                randomGapTime();    // between consecutive keystrokes
+
 private:
     RuleList            m_ruleList;
     PrimaryClient*        m_primaryClient;
     ExternalCommandServer *m_externalCommandServer;
     IEventQueue*        m_events;
+    std::deque<PendingKey> m_pendingKeys;
+    EventQueueTimer*    m_pendingKeyTimer{nullptr};
+    std::mt19937        m_rng{std::random_device{}()};
 };
