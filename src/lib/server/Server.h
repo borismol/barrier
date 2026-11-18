@@ -121,6 +121,13 @@ public:
     //! @name manipulators
     //@{
 
+    //! Check configuration
+    /*!
+    Returns true iff the configuration includes the server's primary screen
+    and would therefore be accepted by setConfig().
+    */
+    bool                isConfigValid(const Config&) const;
+
     //! Set configuration
     /*!
     Change the server's configuration.  Returns true iff the new

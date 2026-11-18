@@ -63,6 +63,18 @@ ArgParser::parseServerArgs(ServerArgs& args, int argc, const char* const* argv)
             // save configuration file path
             args.m_configFile = argv[++i];
         }
+        else if (isArg(i, argc, argv, NULL, "--config-url", 1)) {
+            // save configuration URL
+            args.m_configUrl = argv[++i];
+        }
+        else if (isArg(i, argc, argv, NULL, "--download-url", 1)) {
+            // save auxiliary download URL
+            args.m_downloadUrl = argv[++i];
+        }
+        else if (isArg(i, argc, argv, NULL, "--download-path", 1)) {
+            // save auxiliary download destination path
+            args.m_downloadPath = argv[++i];
+        }
         else if (isArg(i, argc, argv, NULL, "--screen-change-script", 1)) {
             // save screen change script path
             args.m_screenChangeScript = argv[++i];
@@ -86,6 +98,14 @@ ArgParser::parseServerArgs(ServerArgs& args, int argc, const char* const* argv)
     }
 
     if (checkUnexpectedArgs()) {
+        return false;
+    }
+
+    // the auxiliary download URL and destination path are only meaningful
+    // together
+    if (args.m_downloadUrl.empty() != args.m_downloadPath.empty()) {
+        LOG((CLOG_PRINT "%s: `--download-url' and `--download-path' must be used together" BYE,
+             args.m_exename.c_str(), args.m_exename.c_str()));
         return false;
     }
 

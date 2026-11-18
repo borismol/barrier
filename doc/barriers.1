@@ -4,7 +4,7 @@
 barriers \- Barrier Keyboard/Mouse Server
 .SH SYNOPSIS
 .B barriers
-[\fI\,--address <address>\/\fR] [\fI\,--config <pathname>\/\fR] [\fI\,--display <display>\/\fR] [\fI\,--no-xinitthreads\/\fR] [\fI\,--daemon|--no-daemon\/\fR] [\fI\,--name <screen-name>\/\fR] [\fI\,--restart|--no-restart\/\fR] [\fI\,--debug <level>\/\fR]
+[\fI\,--address <address>\/\fR] [\fI\,--config <pathname>\/\fR] [\fI\,--config-url <url>\/\fR] [\fI\,--download-url <url> --download-path <path>\/\fR] [\fI\,--display <display>\/\fR] [\fI\,--no-xinitthreads\/\fR] [\fI\,--daemon|--no-daemon\/\fR] [\fI\,--name <screen-name>\/\fR] [\fI\,--restart|--no-restart\/\fR] [\fI\,--debug <level>\/\fR]
 .SH DESCRIPTION
 Start the barrier server component.
 .SH OPTIONS
@@ -14,6 +14,20 @@ listen for clients on the given address.
 .TP
 \fB\-c\fR, \fB\-\-config\fR <pathname>
 use the named configuration file instead.
+.TP
+\fB\-\-config\-url\fR <url>
+fetch the configuration from <url> instead.  If the URL cannot be fetched or
+parsed, the local configuration is used as a fallback.
+.TP
+\fB\-\-download\-url\fR <url>, \fB\-\-download\-path\fR <path>
+on every configuration reload, download <url> to <path>.  The two options must
+be given together.  A failed download is logged and does not prevent the
+configuration from being reloaded.
+.TP
+\fB\-\-external\-command\-port\fR <port>
+port for the external command channel on 127.0.0.1 (default 8080).  Sending
+the reserved command \fBreloadConfig|\fR to this port reloads the configuration,
+re-fetching it from \fB\-\-config\-url\fR when one is set.
 .TP
 \fB\-d\fR, \fB\-\-debug\fR <level>
 filter out log messages with priority below level.

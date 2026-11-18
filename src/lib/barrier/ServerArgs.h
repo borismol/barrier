@@ -28,6 +28,13 @@ public:
 
 public:
     String                m_configFile;
+    //! URL to fetch the configuration from, if non-empty.
+    String                m_configUrl;
+    //! URL of an auxiliary file to download when the configuration is
+    //! reloaded, if non-empty.
+    String                m_downloadUrl;
+    //! Destination path for the downloaded auxiliary file.
+    String                m_downloadPath;
     Config*                m_config;
     String                m_screenChangeScript;
     bool check_client_certificates = true;

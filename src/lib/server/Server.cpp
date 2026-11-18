@@ -40,6 +40,7 @@
 #include "mt/Thread.h"
 #include "arch/Arch.h"
 #include "base/IEventQueue.h"
+#include "base/Event.h"
 #include "base/Log.h"
 #include "base/TMethodEventJob.h"
 #include "ipc/ExternalCommandServer.h"
@@ -132,6 +133,16 @@ Server::Server(
 		LOG((CLOG_WARN "external command server disabled: %s", e.what()));
 		delete m_externalCommandServer;
 		m_externalCommandServer = NULL;
+	}
+
+	if (m_externalCommandServer != NULL) {
+		// allow the external command channel to trigger a configuration
+		// reload, using the same path as SIGHUP.
+		m_externalCommandServer->setCommandHandler(EXTERNAL_COMMAND_RELOAD_CONFIG,
+				[this]() {
+					m_events->addEvent(Event(m_events->forServerApp().reloadConfig(),
+							m_events->getSystemTarget()));
+				});
 	}
 
 	// install event handlers
@@ -296,10 +307,17 @@ Server::~Server()
 }
 
 bool
+Server::isConfigValid(const Config& config) const
+{
+	// the configuration must include the primary screen
+	return config.isScreen(m_primaryClient->getName());
+}
+
+bool
 Server::setConfig(const Config& config)
 {
 	// refuse configuration if it doesn't include the primary screen
-	if (!config.isScreen(m_primaryClient->getName())) {
+	if (!isConfigValid(config)) {
 		return false;
 	}
 

@@ -31,6 +31,7 @@
 #include "net/TCPSocketFactory.h"
 #include "net/XSocket.h"
 #include "arch/Arch.h"
+#include "arch/XArch.h"
 #include "base/EventQueue.h"
 #include "base/log_outputters.h"
 #include "base/FunctionEventJob.h"
@@ -39,6 +40,7 @@
 #include "base/TMethodEventJob.h"
 #include "common/Version.h"
 #include "common/DataDirectories.h"
+#include "io/filesystem.h"
 
 #if SYSAPI_WIN32
 #include "arch/win32/ArchMiscWindows.h"
@@ -62,6 +64,7 @@
 #include <stdio.h>
 #include <fstream>
 #include <sstream>
+#include <system_error>
 
 //
 // ServerApp
@@ -142,16 +145,26 @@ ServerApp::help()
            << "Usage: " << args().m_exename
            << " [--address <address>]"
            << " [--config <pathname>]"
+           << " [--config-url <url>]"
+           << " [--download-url <url> --download-path <path>]"
            << WINAPI_ARGS << HELP_SYS_ARGS << HELP_COMMON_ARGS << "\n"
            << "\n"
            << "Options:\n"
            << "  -a, --address <address>  listen for clients on the given address.\n"
            << "  -c, --config <pathname>  use the named configuration file instead.\n"
+           << "      --config-url <url>   fetch the configuration from <url> instead.\n"
+           << "                           falls back to the local configuration on\n"
+           << "                           failure.\n"
+           << "      --download-url <url>  download <url> on every configuration\n"
+           << "      --download-path <path>  reload and write it to <path>.  Both\n"
+           << "                           options must be given together.\n"
            << HELP_COMMON_INFO_1
            << "      --disable-client-cert-checking disable client SSL certificate \n"
               "                                     checking (deprecated)\n"
            << "      --external-command-port <port>  port for the external command\n"
               "                                     channel on 127.0.0.1 (default 8080)\n"
+              "                                     send \"reloadConfig|\" to reload the\n"
+              "                                     configuration\n"
            << WINAPI_INFO << HELP_SYS_INFO << HELP_COMMON_INFO_2 << "\n"
            << "Default options are marked with a *\n"
            << "\n"
@@ -181,12 +194,53 @@ void
 ServerApp::reloadConfig(const Event&, void*)
 {
     LOG((CLOG_DEBUG "reload configuration"));
-    if (loadConfig(args().m_configFile)) {
-        if (m_server != NULL) {
-            m_server->setConfig(*args().m_config);
+
+    // keep the auxiliary file in sync with the configuration on every reload
+    if (!args().m_downloadUrl.empty() && !args().m_downloadPath.empty()) {
+        if (!downloadFile(args().m_downloadUrl, args().m_downloadPath)) {
+            LOG((CLOG_WARN "failed to download \"%s\" to \"%s\", continuing",
+                args().m_downloadUrl.c_str(), args().m_downloadPath.c_str()));
         }
-        LOG((CLOG_NOTE "reloaded configuration"));
     }
+
+    // parse into a temporary so a failed or rejected reload leaves the
+    // running configuration untouched.
+    Config config(m_events);
+
+    bool loaded = false;
+
+    // prefer the remote configuration if a URL was provided
+    if (!args().m_configUrl.empty()) {
+        loaded = loadConfigFromUrl(config);
+    }
+
+    // fall back to the local configuration file
+    if (!loaded && !args().m_configFile.empty()) {
+        loaded = loadConfigInto(args().m_configFile, config);
+    }
+
+    if (!loaded) {
+        // keep the current configuration if nothing could be loaded
+        LOG((CLOG_ERR "failed to reload configuration, keeping current configuration"));
+        return;
+    }
+
+    if (m_server != NULL) {
+        // validate before installing so a rejected reload cannot disturb
+        // the running configuration; Server::setConfig() operates on the
+        // configuration installed in args().
+        if (!m_server->isConfigValid(config)) {
+            LOG((CLOG_ERR "reloaded configuration rejected, keeping current configuration"));
+            return;
+        }
+        *args().m_config = config;
+        m_server->setConfig(config);
+    }
+    else {
+        *args().m_config = config;
+    }
+
+    LOG((CLOG_NOTE "reloaded configuration"));
 }
 
 void
@@ -194,32 +248,43 @@ ServerApp::loadConfig()
 {
     bool loaded = false;
 
-    // load the config file, if specified
-    if (!args().m_configFile.empty()) {
-        loaded = loadConfig(args().m_configFile);
+    // prefer the remote configuration if a URL was provided
+    if (!args().m_configUrl.empty()) {
+        loaded = loadConfigFromUrl(*args().m_config);
+        if (!loaded) {
+            LOG((CLOG_WARN "cannot load configuration from \"%s\", "
+                "falling back to local configuration", args().m_configUrl.c_str()));
+        }
     }
 
-    // load the default configuration if no explicit file given
-    else {
-        auto path = barrier::DataDirectories::profile();
-        if (!path.empty()) {
-            // complete path
-            path /= barrier::fs::u8path(USR_CONFIG_NAME);
-
-            // now try loading the user's configuration
-            if (loadConfig(path.u8string())) {
-                loaded            = true;
-                args().m_configFile = path.u8string();
-            }
+    if (!loaded) {
+        // load the config file, if specified
+        if (!args().m_configFile.empty()) {
+            loaded = loadConfigInto(args().m_configFile, *args().m_config);
         }
-        if (!loaded) {
-            // try the system-wide config file
-            path = barrier::DataDirectories::systemconfig();
+
+        // load the default configuration if no explicit file given
+        else {
+            auto path = barrier::DataDirectories::profile();
             if (!path.empty()) {
-                path /= barrier::fs::u8path(SYS_CONFIG_NAME);
-                if (loadConfig(path.u8string())) {
+                // complete path
+                path /= barrier::fs::u8path(USR_CONFIG_NAME);
+
+                // now try loading the user's configuration
+                if (loadConfigInto(path.u8string(), *args().m_config)) {
                     loaded            = true;
                     args().m_configFile = path.u8string();
+                }
+            }
+            if (!loaded) {
+                // try the system-wide config file
+                path = barrier::DataDirectories::systemconfig();
+                if (!path.empty()) {
+                    path /= barrier::fs::u8path(SYS_CONFIG_NAME);
+                    if (loadConfigInto(path.u8string(), *args().m_config)) {
+                        loaded            = true;
+                        args().m_configFile = path.u8string();
+                    }
                 }
             }
         }
@@ -232,28 +297,141 @@ ServerApp::loadConfig()
 }
 
 bool
-ServerApp::loadConfig(const String& pathname)
+ServerApp::loadConfigFromStream(std::istream& stream, const String& sourceName,
+                                Config& config)
 {
     try {
         // load configuration
-        LOG((CLOG_DEBUG "opening configuration \"%s\"", pathname.c_str()));
-        std::ifstream configStream(pathname.c_str());
-        if (!configStream.is_open()) {
-            // report failure to open configuration as a debug message
-            // since we try several paths and we expect some to be
-            // missing.
-            LOG((CLOG_DEBUG "cannot open configuration \"%s\"",
-                pathname.c_str()));
-            return false;
-        }
-        configStream >> *args().m_config;
-        LOG((CLOG_DEBUG "configuration read successfully"));
+        stream >> config;
+        LOG((CLOG_DEBUG "configuration read successfully from \"%s\"",
+            sourceName.c_str()));
         return true;
     }
     catch (XConfigRead& e) {
-        // report error in configuration file
-        LOG((CLOG_ERR "cannot read configuration \"%s\": %s",
-            pathname.c_str(), e.what()));
+        // report error in configuration source
+        LOG((CLOG_ERR "cannot read configuration from \"%s\": %s",
+            sourceName.c_str(), e.what()));
+    }
+    return false;
+}
+
+bool
+ServerApp::loadConfigFromUrl(Config& config)
+{
+    const String& url = args().m_configUrl;
+
+    try {
+        LOG((CLOG_DEBUG "fetching configuration from \"%s\"", url.c_str()));
+        std::string contents = ARCH->internet().get(url);
+        // an empty response would otherwise be accepted as an empty
+        // configuration; treat it as a failure instead.
+        if (contents.find_first_not_of(" \t\r\n") == std::string::npos) {
+            LOG((CLOG_ERR "configuration fetched from \"%s\" is empty", url.c_str()));
+            return false;
+        }
+        std::istringstream stream(contents);
+        return loadConfigFromStream(stream, url, config);
+    }
+    catch (XArch& e) {
+        LOG((CLOG_ERR "cannot fetch configuration from \"%s\": %s",
+            url.c_str(), e.what()));
+    }
+    return false;
+}
+
+bool
+ServerApp::loadConfig(const String& pathname)
+{
+    return loadConfigInto(pathname, *args().m_config);
+}
+
+bool
+ServerApp::loadConfigInto(const String& pathname, Config& config)
+{
+    // load configuration
+    LOG((CLOG_DEBUG "opening configuration \"%s\"", pathname.c_str()));
+    std::ifstream configStream(pathname.c_str());
+    if (!configStream.is_open()) {
+        // report failure to open configuration as a debug message
+        // since we try several paths and we expect some to be
+        // missing.
+        LOG((CLOG_DEBUG "cannot open configuration \"%s\"",
+            pathname.c_str()));
+        return false;
+    }
+    return loadConfigFromStream(configStream, pathname, config);
+}
+
+bool
+ServerApp::downloadFile(const String& url, const String& pathname)
+{
+    LOG((CLOG_DEBUG "downloading \"%s\" to \"%s\"",
+        url.c_str(), pathname.c_str()));
+
+    try {
+        std::string contents = ARCH->internet().get(url);
+        if (contents.empty()) {
+            LOG((CLOG_ERR "downloaded file from \"%s\" is empty", url.c_str()));
+            return false;
+        }
+
+        auto path = barrier::fs::u8path(pathname);
+
+        // make sure the destination directory exists
+        auto dir = path.parent_path();
+        if (!dir.empty()) {
+            std::error_code ec;
+            barrier::fs::create_directories(dir, ec);
+            if (ec) {
+                LOG((CLOG_ERR "cannot create directory \"%s\": %s",
+                    dir.u8string().c_str(), ec.message().c_str()));
+                return false;
+            }
+        }
+
+        // write to a temporary file in the destination directory and rename it
+        // into place so an interrupted write cannot corrupt the destination
+        auto tmpPath = barrier::fs::u8path(pathname + ".part");
+
+        std::ofstream out;
+        barrier::open_utf8_path(out, tmpPath,
+            std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
+        if (!out.is_open()) {
+            LOG((CLOG_ERR "cannot open \"%s\" for writing",
+                tmpPath.u8string().c_str()));
+            return false;
+        }
+        out.write(contents.data(), contents.size());
+        out.close();
+        if (!out) {
+            LOG((CLOG_ERR "cannot write \"%s\"", tmpPath.u8string().c_str()));
+            std::error_code ec;
+            barrier::fs::remove(tmpPath, ec);
+            return false;
+        }
+
+        std::error_code ec;
+        barrier::fs::rename(tmpPath, path, ec);
+        if (ec) {
+            // some platforms refuse to replace an existing file
+            barrier::fs::remove(path, ec);
+            ec.clear();
+            barrier::fs::rename(tmpPath, path, ec);
+        }
+        if (ec) {
+            LOG((CLOG_ERR "cannot move \"%s\" to \"%s\": %s",
+                tmpPath.u8string().c_str(), path.u8string().c_str(),
+                ec.message().c_str()));
+            barrier::fs::remove(tmpPath, ec);
+            return false;
+        }
+
+        LOG((CLOG_NOTE "downloaded \"%s\" to \"%s\"",
+            url.c_str(), pathname.c_str()));
+        return true;
+    }
+    catch (XArch& e) {
+        LOG((CLOG_ERR "cannot download \"%s\": %s", url.c_str(), e.what()));
     }
     return false;
 }

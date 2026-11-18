@@ -29,6 +29,7 @@
 #include "base/EventTypes.h"
 
 #include <map>
+#include <istream>
 
 enum EServerState {
     kUninitialized,
@@ -70,6 +71,11 @@ public:
     void reloadConfig(const Event&, void*);
     void loadConfig();
     bool loadConfig(const String& pathname);
+    bool loadConfigInto(const String& pathname, Config& config);
+    bool loadConfigFromUrl(Config& config);
+    bool loadConfigFromStream(std::istream& stream, const String& sourceName,
+                              Config& config);
+    bool downloadFile(const String& url, const String& pathname);
     void forceReconnect(const Event&, void*);
     void resetServer(const Event&, void*);
     void handleClientConnected(const Event&, void* vlistener);

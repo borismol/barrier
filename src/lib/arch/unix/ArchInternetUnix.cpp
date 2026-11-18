@@ -89,6 +89,15 @@ std::string CurlFacade::get(const std::string& url)
 {
     curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, curlWriteCallback);
+    // bound the request so an unresponsive endpoint cannot stall the caller
+    // (configuration fetches run on the server's event loop thread).
+    curl_easy_setopt(m_curl, CURLOPT_CONNECTTIMEOUT_MS, 5000L);
+    curl_easy_setopt(m_curl, CURLOPT_TIMEOUT_MS, 15000L);
+    // follow redirects and treat HTTP error responses as failures so their
+    // bodies are never mistaken for the requested content.
+    curl_easy_setopt(m_curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(m_curl, CURLOPT_MAXREDIRS, 5L);
+    curl_easy_setopt(m_curl, CURLOPT_FAILONERROR, 1L);
 
     std::stringstream userAgent;
     userAgent << "Barrier ";

@@ -11,6 +11,8 @@
 #include "base/Event.h"
 #include "base/Log.h"
 
+#include <utility>
+
 ExternalCommandServer::ExternalCommandServer(IEventQueue *events, SocketMultiplexer *socketMultiplexer, int port)
     : m_events(events), m_socketMultiplexer(socketMultiplexer), m_address("127.0.0.1", port)
 {
@@ -31,6 +33,12 @@ void ExternalCommandServer::init()
 
 void ExternalCommandServer::listen() {
     m_socket->bind(m_address);
+}
+
+void ExternalCommandServer::setCommandHandler(const std::string &command,
+                                              std::function<void()> handler)
+{
+    m_commandHandlers[command] = std::move(handler);
 }
 
 void ExternalCommandServer::handleClientConnecting(const Event &, void *)
@@ -80,6 +88,14 @@ void ExternalCommandServer::handleMessageReceived(const Event &e, void *)
     auto *m = static_cast<ExternalCommandMessage *>(e.getDataObject());
     if (m == nullptr) {
         LOG((CLOG_WARN "external command message is null"));
+        return;
+    }
+
+    // reserved commands are handled internally and never reach the input filter
+    auto handler = m_commandHandlers.find(m->getData());
+    if (handler != m_commandHandlers.end()) {
+        LOG((CLOG_DEBUG "External command %s (reserved)", m->getData().c_str()));
+        handler->second();
         return;
     }
 
