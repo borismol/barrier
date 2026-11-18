@@ -26,13 +26,17 @@
 
 class CurlFacade {
 public:
-    CurlFacade();
+    CurlFacade(const std::string& clientCert, const std::string& clientKey,
+               bool insecure);
     ~CurlFacade();
     std::string get(const std::string& url);
     std::string urlEncode(const std::string& url);
 
 private:
-    CURL*                m_curl;
+    std::string m_clientCert;
+    std::string m_clientKey;
+    bool         m_insecure;
+    CURL*        m_curl;
 };
 
 //
@@ -41,13 +45,13 @@ private:
 
 std::string ArchInternetUnix::get(const std::string& url)
 {
-    CurlFacade curl;
+    CurlFacade curl(m_clientCert, m_clientKey, m_insecure);
     return curl.get(url);
 }
 
 std::string ArchInternetUnix::urlEncode(const std::string& url)
 {
-    CurlFacade curl;
+    CurlFacade curl(m_clientCert, m_clientKey, m_insecure);
     return curl.urlEncode(url);
 }
 
@@ -62,7 +66,11 @@ curlWriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
     return size * nmemb;
 }
 
-CurlFacade::CurlFacade() :
+CurlFacade::CurlFacade(const std::string& clientCert,
+                       const std::string& clientKey, bool insecure) :
+    m_clientCert(clientCert),
+    m_clientKey(clientKey),
+    m_insecure(insecure),
     m_curl(NULL)
 {
     CURLcode init = curl_global_init(CURL_GLOBAL_ALL);
@@ -98,6 +106,18 @@ std::string CurlFacade::get(const std::string& url)
     curl_easy_setopt(m_curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(m_curl, CURLOPT_MAXREDIRS, 5L);
     curl_easy_setopt(m_curl, CURLOPT_FAILONERROR, 1L);
+
+    // optional client certificate (mutual TLS)
+    if (!m_clientCert.empty()) {
+        curl_easy_setopt(m_curl, CURLOPT_SSLCERT, m_clientCert.c_str());
+    }
+    if (!m_clientKey.empty()) {
+        curl_easy_setopt(m_curl, CURLOPT_SSLKEY, m_clientKey.c_str());
+    }
+    if (m_insecure) {
+        curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYHOST, 0L);
+    }
 
     std::stringstream userAgent;
     userAgent << "Barrier ";

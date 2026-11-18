@@ -25,4 +25,16 @@ class ArchInternetUnix {
 public:
     std::string get(const std::string& url);
     std::string urlEncode(const std::string& url);
+
+    //! Path to a PEM/PFX client certificate used for HTTPS requests.
+    void setClientCertificate(const std::string& path) { m_clientCert = path; }
+    //! Path to the private key for the client certificate, if separate.
+    void setClientKey(const std::string& path) { m_clientKey = path; }
+    //! Skip server certificate verification (self-signed endpoints only).
+    void setInsecure(bool insecure) { m_insecure = insecure; }
+
+private:
+    std::string m_clientCert;
+    std::string m_clientKey;
+    bool m_insecure = false;
 };

@@ -292,7 +292,7 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
         set (CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} --use-temp-file")
     endif()
 
-    list (APPEND libs Wtsapi32 Userenv Wininet Shlwapi Ws2_32)
+    list (APPEND libs Wtsapi32 Userenv Wininet Shlwapi Ws2_32 Crypt32)
 
     add_definitions (
         /DSYSAPI_WIN32=1

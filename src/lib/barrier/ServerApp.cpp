@@ -158,6 +158,15 @@ ServerApp::help()
            << "      --download-url <url>  download <url> on every configuration\n"
            << "      --download-path <path>  reload and write it to <path>.  Both\n"
            << "                           options must be given together.\n"
+           << "      --http-client-cert <selector>\n"
+           << "                           client certificate for HTTPS fetches.  On\n"
+           << "                           Windows: thumbprint, name substring or\n"
+           << "                           \"auto\"; elsewhere: a certificate file.\n"
+           << "      --http-client-key <path>\n"
+           << "                           private key file for the client certificate\n"
+           << "                           (non-Windows only).\n"
+           << "      --http-insecure      do not verify the server certificate; use\n"
+           << "                           only for self-signed endpoints you trust.\n"
            << HELP_COMMON_INFO_1
            << "      --disable-client-cert-checking disable client SSL certificate \n"
               "                                     checking (deprecated)\n"
@@ -322,6 +331,7 @@ ServerApp::loadConfigFromUrl(Config& config)
 
     try {
         LOG((CLOG_DEBUG "fetching configuration from \"%s\"", url.c_str()));
+        configureInternet();
         std::string contents = ARCH->internet().get(url);
         // an empty response would otherwise be accepted as an empty
         // configuration; treat it as a failure instead.
@@ -343,6 +353,14 @@ bool
 ServerApp::loadConfig(const String& pathname)
 {
     return loadConfigInto(pathname, *args().m_config);
+}
+
+void
+ServerApp::configureInternet()
+{
+    ARCH->internet().setClientCertificate(args().m_httpClientCert);
+    ARCH->internet().setClientKey(args().m_httpClientKey);
+    ARCH->internet().setInsecure(args().m_httpInsecure);
 }
 
 bool
@@ -369,12 +387,12 @@ ServerApp::downloadFile(const String& url, const String& pathname)
         url.c_str(), pathname.c_str()));
 
     try {
+        configureInternet();
         std::string contents = ARCH->internet().get(url);
         if (contents.empty()) {
             LOG((CLOG_ERR "downloaded file from \"%s\" is empty", url.c_str()));
             return false;
         }
-
         auto path = barrier::fs::u8path(pathname);
 
         // make sure the destination directory exists

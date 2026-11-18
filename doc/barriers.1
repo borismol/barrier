@@ -24,6 +24,19 @@ on every configuration reload, download <url> to <path>.  The two options must
 be given together.  A failed download is logged and does not prevent the
 configuration from being reloaded.
 .TP
+\fB\-\-http\-client\-cert\fR <selector>
+client certificate used for HTTPS fetches.  On Windows <selector> is a
+certificate thumbprint, a substring of the certificate name, or "auto" for the
+first certificate with a private key; on other platforms it is the path to a
+certificate file.
+.TP
+\fB\-\-http\-client\-key\fR <path>
+private key file for \fB\-\-http\-client\-cert\fR (non-Windows only).
+.TP
+\fB\-\-http\-insecure\fR
+do not verify the server certificate.  Use only for self-signed endpoints you
+trust.
+.TP
 \fB\-\-external\-command\-port\fR <port>
 port for the external command channel on 127.0.0.1 (default 8080).  Sending
 the reserved command \fBreloadConfig|\fR to this port reloads the configuration,

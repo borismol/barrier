@@ -25,4 +25,17 @@ class ArchInternetWindows {
 public:
     std::string get(const std::string& url);
     std::string urlEncode(const std::string& url);
+
+    //! Select the client certificate used for HTTPS requests.  \p selector is
+    //! a thumbprint, a substring of the certificate name, or "auto" for the
+    //! first certificate with a private key.
+    void setClientCertificate(const std::string& selector) { m_clientCert = selector; }
+    //! Not applicable on Windows; certificates live in the OS store.
+    void setClientKey(const std::string&) { }
+    //! Skip server certificate verification (self-signed endpoints only).
+    void setInsecure(bool insecure) { m_insecure = insecure; }
+
+private:
+    std::string m_clientCert;
+    bool m_insecure = false;
 };

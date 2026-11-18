@@ -143,3 +143,37 @@ TEST(ServerArgsParsingTests, parseServerArgs_downloadPathWithoutUrl_returnFalse)
 
     EXPECT_FALSE(result);
 }
+
+TEST(ServerArgsParsingTests, parseServerArgs_httpClientCertArgs_setValues)
+{
+    NiceMock<MockArgParser> argParser;
+    ON_CALL(argParser, parseGenericArgs(_, _, _)).WillByDefault(Invoke(server_stubParseGenericArgs));
+    ON_CALL(argParser, checkUnexpectedArgs()).WillByDefault(Invoke(server_stubCheckUnexpectedArgs));
+    ServerArgs serverArgs;
+    const int argc = 5;
+    const char* kHttpCmd[argc] = {
+        "stub", "--http-client-cert", "auto",
+        "--http-client-key", "/tmp/client.key"
+    };
+
+    bool result = argParser.parseServerArgs(serverArgs, argc, kHttpCmd);
+
+    EXPECT_TRUE(result);
+    EXPECT_EQ("auto", serverArgs.m_httpClientCert);
+    EXPECT_EQ("/tmp/client.key", serverArgs.m_httpClientKey);
+}
+
+TEST(ServerArgsParsingTests, parseServerArgs_httpInsecure_setsFlag)
+{
+    NiceMock<MockArgParser> argParser;
+    ON_CALL(argParser, parseGenericArgs(_, _, _)).WillByDefault(Invoke(server_stubParseGenericArgs));
+    ON_CALL(argParser, checkUnexpectedArgs()).WillByDefault(Invoke(server_stubCheckUnexpectedArgs));
+    ServerArgs serverArgs;
+    const int argc = 2;
+    const char* kHttpCmd[argc] = { "stub", "--http-insecure" };
+
+    bool result = argParser.parseServerArgs(serverArgs, argc, kHttpCmd);
+
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(serverArgs.m_httpInsecure);
+}

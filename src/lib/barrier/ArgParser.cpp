@@ -75,6 +75,18 @@ ArgParser::parseServerArgs(ServerArgs& args, int argc, const char* const* argv)
             // save auxiliary download destination path
             args.m_downloadPath = argv[++i];
         }
+        else if (isArg(i, argc, argv, NULL, "--http-client-cert", 1)) {
+            // save client certificate selector/path for HTTPS fetches
+            args.m_httpClientCert = argv[++i];
+        }
+        else if (isArg(i, argc, argv, NULL, "--http-client-key", 1)) {
+            // save client certificate private key path
+            args.m_httpClientKey = argv[++i];
+        }
+        else if (isArg(i, argc, argv, NULL, "--http-insecure")) {
+            // skip server certificate verification
+            args.m_httpInsecure = true;
+        }
         else if (isArg(i, argc, argv, NULL, "--screen-change-script", 1)) {
             // save screen change script path
             args.m_screenChangeScript = argv[++i];

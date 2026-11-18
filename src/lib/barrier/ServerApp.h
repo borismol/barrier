@@ -76,6 +76,7 @@ public:
     bool loadConfigFromStream(std::istream& stream, const String& sourceName,
                               Config& config);
     bool downloadFile(const String& url, const String& pathname);
+    void configureInternet();
     void forceReconnect(const Event&, void*);
     void resetServer(const Event&, void*);
     void handleClientConnected(const Event&, void* vlistener);

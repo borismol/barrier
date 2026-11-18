@@ -35,6 +35,13 @@ public:
     String                m_downloadUrl;
     //! Destination path for the downloaded auxiliary file.
     String                m_downloadPath;
+    //! Client certificate for HTTPS fetches.  On Windows this is a thumbprint,
+    //! a name substring or "auto"; elsewhere it is a certificate file path.
+    String                m_httpClientCert;
+    //! Private key file for the client certificate (non-Windows only).
+    String                m_httpClientKey;
+    //! Skip server certificate verification (self-signed endpoints only).
+    bool                  m_httpInsecure = false;
     Config*                m_config;
     String                m_screenChangeScript;
     bool check_client_certificates = true;
