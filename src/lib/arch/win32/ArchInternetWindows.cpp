@@ -254,10 +254,13 @@ static PCCERT_CONTEXT findClientCertificateInStore(DWORD location,
         else {
             std::string simple = toLowerAscii(
                 certificateName(cert, CERT_NAME_SIMPLE_DISPLAY_TYPE));
-            std::string full = toLowerAscii(
-                certificateName(cert, CERT_NAME_FULL_DISPLAY_TYPE));
+            std::string rdn = toLowerAscii(
+                certificateName(cert, CERT_NAME_RDN_TYPE));
+            std::string friendly = toLowerAscii(
+                certificateName(cert, CERT_NAME_FRIENDLY_DISPLAY_TYPE));
             match = simple.find(wantedName) != std::string::npos ||
-                    full.find(wantedName) != std::string::npos;
+                    rdn.find(wantedName) != std::string::npos ||
+                    friendly.find(wantedName) != std::string::npos;
         }
 
         if (match) {
